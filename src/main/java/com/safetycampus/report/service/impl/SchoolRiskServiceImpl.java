@@ -9,6 +9,7 @@ import com.safetycampus.alarm.entity.AlarmRecord;
 import com.safetycampus.alarm.enums.AlarmLevelEnum;
 import com.safetycampus.alarm.mapper.AlarmRecordMapper;
 import com.safetycampus.common.exception.BusinessException;
+import com.safetycampus.common.result.ResultCode;
 import com.safetycampus.report.dto.RiskQueryDTO;
 import com.safetycampus.report.entity.SchoolRisk;
 import com.safetycampus.report.enums.RiskLevelEnum;
@@ -97,7 +98,7 @@ public class SchoolRiskServiceImpl extends ServiceImpl<SchoolRiskMapper, SchoolR
     public SchoolRisk generateRiskPortrait(Long schoolId, String statMonth) {
         SchoolInfo school = schoolInfoMapper.selectById(schoolId);
         if (school == null) {
-            throw new BusinessException("学校不存在");
+            throw BusinessException.of(ResultCode.SCHOOL_NOT_FOUND);
         }
 
         YearMonth yearMonth = YearMonth.parse(statMonth);

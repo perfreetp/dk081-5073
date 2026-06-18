@@ -49,10 +49,10 @@ public class SuperviseServiceImpl extends ServiceImpl<AlarmRecordMapper, AlarmRe
     public boolean createSupervise(SuperviseCreateDTO dto) {
         AlarmRecord record = getById(dto.getAlarmId());
         if (record == null) {
-            throw BusinessException.of(ResultCode.ALARM_NOT_FOUND);
+            throw new BusinessException(ResultCode.ALARM_NOT_EXIST);
         }
         if (AlarmStatusEnum.CLOSED.getCode().equals(record.getStatus())) {
-            throw BusinessException.of(ResultCode.ALARM_ALREADY_CLOSED);
+            throw new BusinessException(ResultCode.ALARM_STATUS_ERROR, "已关闭的警情不能督办");
         }
 
         LoginUser loginUser = UserContext.getLoginUser();
@@ -243,13 +243,13 @@ public class SuperviseServiceImpl extends ServiceImpl<AlarmRecordMapper, AlarmRe
     public boolean manualRemind(Long id) {
         AlarmRecord record = getById(id);
         if (record == null) {
-            throw new BusinessException(ResultCode.ALARM_NOT_EXIST);
+            throw BusinessException.of(ResultCode.ALARM_NOT_FOUND);
         }
         if (AlarmStatusEnum.CLOSED.getCode().equals(record.getStatus())) {
-            throw new BusinessException(ResultCode.ALARM_STATUS_ERROR, "已关闭的警情不能催办");
+            throw BusinessException.of(ResultCode.ALARM_ALREADY_CLOSED);
         }
         if (AlarmStatusEnum.HANDLED.getCode().equals(record.getStatus())) {
-            throw new BusinessException(ResultCode.ALARM_STATUS_ERROR, "已处置的警情不能催办");
+            throw BusinessException.of(ResultCode.ALARM_ALREADY_HANDLED);
         }
 
         LoginUser loginUser = UserContext.getLoginUser();

@@ -103,4 +103,205 @@
         ORDER BY timeout_count DESC
     </select>
 
+    <select id="selectShiftReview" resultType="java.util.Map">
+        SELECT
+            ds.id AS duty_shift_id,
+            ds.duty_date,
+            ds.shift_type,
+            ds.user_id AS duty_user_id,
+            ds.user_name AS duty_user_name,
+            COUNT(a.id) AS total_alarm_count,
+            SUM(CASE WHEN a.alarm_level = 1 THEN 1 ELSE 0 END) AS critical_alarm_count,
+            SUM(CASE WHEN a.first_response_at IS NOT NULL AND
+                TIMESTAMPDIFF(SECOND, a.created_at, a.first_response_at) &gt;
+                CASE a.alarm_level WHEN 1 THEN 300 WHEN 2 THEN 600 ELSE 1800 END
+                THEN 1 ELSE 0 END) AS timeout_response_count,
+            AVG(CASE WHEN a.first_response_at IS NOT NULL THEN
+                TIMESTAMPDIFF(SECOND, a.created_at, a.first_response_at) END) AS avg_response_time,
+            AVG(CASE WHEN a.handled_at IS NOT NULL AND a.first_response_at IS NOT NULL THEN
+                TIMESTAMPDIFF(SECOND, a.first_response_at, a.handled_at) END) AS avg_handle_time,
+            SUM(CASE WHEN a.status IN (4, 5) THEN 1 ELSE 0 END) AS handled_count,
+            SUM(CASE WHEN a.status = 5 THEN 1 ELSE 0 END) AS close_count,
+            SUM(CASE WHEN a.status IN (1, 2, 3) THEN 1 ELSE 0 END) AS carry_count
+        FROM duty_schedule ds
+        LEFT JOIN alarm_record a ON (
+            (ds.shift_type = 1
+                AND a.created_at &gt;= CONCAT(ds.duty_date, ' 08:00:00')
+                AND a.created_at &lt; CONCAT(ds.duty_date, ' 20:00:00'))
+            OR
+            (ds.shift_type = 2
+                AND (
+                    (a.created_at &gt;= CONCAT(ds.duty_date, ' 20:00:00')
+                        AND a.created_at &lt; CONCAT(DATE_ADD(ds.duty_date, INTERVAL 1 DAY), ' 08:00:00'))
+                )
+            )
+        )
+        LEFT JOIN school_info s ON a.school_id = s.id
+        WHERE ds.duty_date &gt;= #{startDate}
+          AND ds.duty_date &lt;= #{endDate}
+          AND ds.is_standby = 0
+        <if test="dutyShift != null">
+            AND ds.shift_type = #{dutyShift}
+        </if>
+        <if test="userId != null">
+            AND ds.user_id = #{userId}
+        </if>
+        <if test="townId != null">
+            AND s.town_id = #{townId}
+        </if>
+        <if test="groupId != null">
+            AND s.group_id = #{groupId}
+        </if>
+        <if test="schoolType != null">
+            AND s.school_type = #{schoolType}
+        </if>
+        GROUP BY ds.id, ds.duty_date, ds.shift_type, ds.user_id, ds.user_name
+        ORDER BY ds.duty_date DESC, ds.shift_type ASC
+    </select>
+
+    <select id="selectSchoolReview" resultType="java.util.Map">
+        SELECT
+            s.id AS school_id,
+            s.school_name,
+            s.school_type,
+            COUNT(a.id) AS total_alarm_count,
+            SUM(CASE WHEN a.alarm_level = 1 THEN 1 ELSE 0 END) AS critical_alarm_count,
+            SUM(CASE WHEN a.first_response_at IS NOT NULL AND
+                TIMESTAMPDIFF(SECOND, a.created_at, a.first_response_at) &gt;
+                CASE a.alarm_level WHEN 1 THEN 300 WHEN 2 THEN 600 ELSE 1800 END
+                THEN 1 ELSE 0 END) AS timeout_response_count,
+            AVG(CASE WHEN a.first_response_at IS NOT NULL THEN
+                TIMESTAMPDIFF(SECOND, a.created_at, a.first_response_at) END) AS avg_response_time,
+            AVG(CASE WHEN a.handled_at IS NOT NULL AND a.first_response_at IS NOT NULL THEN
+                TIMESTAMPDIFF(SECOND, a.first_response_at, a.handled_at) END) AS avg_handle_time,
+            SUM(CASE WHEN a.status IN (4, 5) THEN 1 ELSE 0 END) AS handled_count
+        FROM school_info s
+        LEFT JOIN alarm_record a ON s.id = a.school_id
+            AND a.deleted = 0
+        LEFT JOIN duty_schedule ds ON (
+            (ds.shift_type = 1
+                AND a.created_at &gt;= CONCAT(ds.duty_date, ' 08:00:00')
+                AND a.created_at &lt; CONCAT(ds.duty_date, ' 20:00:00'))
+            OR
+            (ds.shift_type = 2
+                AND a.created_at &gt;= CONCAT(ds.duty_date, ' 20:00:00')
+                AND a.created_at &lt; CONCAT(DATE_ADD(ds.duty_date, INTERVAL 1 DAY), ' 08:00:00'))
+        )
+        WHERE s.status = 1
+          AND ds.duty_date &gt;= #{startDate}
+          AND ds.duty_date &lt;= #{endDate}
+          AND ds.is_standby = 0
+        <if test="dutyShift != null">
+            AND ds.shift_type = #{dutyShift}
+        </if>
+        <if test="userId != null">
+            AND ds.user_id = #{userId}
+        </if>
+        <if test="townId != null">
+            AND s.town_id = #{townId}
+        </if>
+        <if test="groupId != null">
+            AND s.group_id = #{groupId}
+        </if>
+        <if test="schoolType != null">
+            AND s.school_type = #{schoolType}
+        </if>
+        GROUP BY s.id, s.school_name, s.school_type
+        ORDER BY total_alarm_count DESC, critical_alarm_count DESC
+    </select>
+
+    <select id="selectRiskEventList" resultType="java.util.Map">
+        SELECT
+            a.alarm_no,
+            s.school_name,
+            a.alarm_level,
+            a.alarm_title,
+            a.status,
+            a.created_at,
+            a.closed_at,
+            af.remark AS handle_summary
+        FROM alarm_record a
+        INNER JOIN school_info s ON a.school_id = s.id
+        LEFT JOIN (
+            SELECT alarm_id, MAX(created_at) AS max_created
+            FROM alarm_flow
+            WHERE flow_type IN (5, 7)
+            GROUP BY alarm_id
+        ) latest_flow ON a.id = latest_flow.alarm_id
+        LEFT JOIN alarm_flow af ON latest_flow.alarm_id = af.alarm_id AND latest_flow.max_created = af.created_at
+        WHERE a.alarm_level = 1
+          AND a.deleted = 0
+          AND (
+              (#{shiftType} = 1
+                  AND a.created_at &gt;= CONCAT(#{dutyDate}, ' 08:00:00')
+                  AND a.created_at &lt; CONCAT(#{dutyDate}, ' 20:00:00'))
+              OR
+              (#{shiftType} = 2
+                  AND a.created_at &gt;= CONCAT(#{dutyDate}, ' 20:00:00')
+                  AND a.created_at &lt; CONCAT(DATE_ADD(#{dutyDate}, INTERVAL 1 DAY), ' 08:00:00'))
+          )
+        <if test="townId != null">
+            AND s.town_id = #{townId}
+        </if>
+        <if test="groupId != null">
+            AND s.group_id = #{groupId}
+        </if>
+        <if test="schoolType != null">
+            AND s.school_type = #{schoolType}
+        </if>
+        ORDER BY a.created_at DESC
+    </select>
+
+    <select id="selectRemindCountByRange" resultType="java.lang.Long">
+        SELECT
+            COUNT(DISTINCT ar.id)
+        FROM alarm_remind ar
+        INNER JOIN alarm_record a ON ar.alarm_id = a.id
+        LEFT JOIN school_info s ON a.school_id = s.id
+        WHERE ar.last_remind_at IS NOT NULL
+          AND ar.last_remind_at &gt;= #{startTime}
+          AND ar.last_remind_at &lt;= #{endTime}
+          AND a.deleted = 0
+        <if test="townId != null">
+            AND s.town_id = #{townId}
+        </if>
+        <if test="groupId != null">
+            AND s.group_id = #{groupId}
+        </if>
+        <if test="schoolType != null">
+            AND s.school_type = #{schoolType}
+        </if>
+    </select>
+
+    <select id="selectPoliceFeedbackStats" resultType="java.util.Map">
+        SELECT
+            COUNT(nr.id) AS total_feedback,
+            SUM(CASE WHEN nr.feedback_at IS NOT NULL
+                AND TIMESTAMPDIFF(MINUTE, nr.created_at, nr.feedback_at) &lt;=
+                COALESCE(ps.feedback_deadline_minutes, 30)
+                THEN 1 ELSE 0 END) AS in_time_feedback,
+            AVG(CASE WHEN nr.feedback_at IS NOT NULL THEN
+                TIMESTAMPDIFF(SECOND, nr.created_at, nr.feedback_at) END) AS avg_feedback_time
+        FROM notify_record nr
+        INNER JOIN alarm_record a ON nr.alarm_id = a.id
+        LEFT JOIN school_info s ON a.school_id = s.id
+        LEFT JOIN police_station ps ON s.police_station_id = ps.id
+        WHERE nr.created_at &gt;= #{startTime}
+          AND nr.created_at &lt;= #{endTime}
+          AND nr.status = 1
+          AND EXISTS (
+              SELECT 1 FROM contact_book cb
+              WHERE cb.unit_type = 3 AND cb.phone = nr.notify_target
+          )
+        <if test="townId != null">
+            AND s.town_id = #{townId}
+        </if>
+        <if test="groupId != null">
+            AND s.group_id = #{groupId}
+        </if>
+        <if test="schoolType != null">
+            AND s.school_type = #{schoolType}
+        </if>
+    </select>
+
 </mapper>

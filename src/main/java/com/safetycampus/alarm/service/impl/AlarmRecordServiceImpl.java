@@ -18,7 +18,9 @@ import com.safetycampus.alarm.service.AlarmRecordService;
 import com.safetycampus.alarm.mapper.HolidayConfigMapper;
 import com.safetycampus.common.exception.BusinessException;
 import com.safetycampus.common.result.ResultCode;
+import com.safetycampus.plan.service.AlarmPlanService;
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +30,7 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 public class AlarmRecordServiceImpl extends ServiceImpl<AlarmRecordMapper, AlarmRecord> implements AlarmRecordService {
 
@@ -39,6 +42,9 @@ public class AlarmRecordServiceImpl extends ServiceImpl<AlarmRecordMapper, Alarm
 
     @Resource
     private com.safetycampus.alarm.mapper.AlarmRemindMapper alarmRemindMapper;
+
+    @Resource
+    private AlarmPlanService alarmPlanService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -73,6 +79,12 @@ public class AlarmRecordServiceImpl extends ServiceImpl<AlarmRecordMapper, Alarm
         alarmFlowService.save(flow);
 
         createAlarmRemind(record.getId(), dto.getAlarmLevel());
+
+        try {
+            alarmPlanService.matchAndLinkPlan(record.getId());
+        } catch (Exception e) {
+            log.error("警情预案匹配失败，alarmId: {}", record.getId(), e);
+        }
 
         if (AlarmLevelEnum.CRITICAL.getCode().equals(dto.getAlarmLevel())) {
             escalateCriticalAlarm(record.getId(), null, "系统");

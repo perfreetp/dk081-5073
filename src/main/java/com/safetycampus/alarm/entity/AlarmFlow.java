@@ -37,6 +37,11 @@ public class AlarmFlow extends BaseEntity {
 
     private String attachUrl;
 
+    private Long dutyShiftId;
+
+    @JsonFormat(pattern = "yyyy-MM-dd")
+    private java.time.LocalDate dutyDate;
+
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createdAt;
 }

@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.safetycampus.command.mapper.CommandMapper">
+
+    <resultMap id="AlarmHistoryVOMap" type="com.safetycampus.command.vo.CommandDashboardVO$AlarmHistoryVO">
+        <result column="id" property="id"/>
+        <result column="alarm_no" property="alarmNo"/>
+        <result column="alarm_type" property="alarmType"/>
+        <result column="alarm_type_name" property="alarmTypeName"/>
+        <result column="alarm_level" property="alarmLevel"/>
+        <result column="alarm_level_name" property="alarmLevelName"/>
+        <result column="status" property="status"/>
+        <result column="status_name" property="statusName"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="handle_duration_minutes" property="handleDurationMinutes"/>
+    </resultMap>
+
+    <select id="selectAlarmHistoryBySchoolId" resultMap="AlarmHistoryVOMap">
+        SELECT
+            a.id,
+            a.alarm_no,
+            a.alarm_type,
+            CASE a.alarm_type
+                WHEN 1 THEN '紧急求助'
+                WHEN 2 THEN '火灾'
+                WHEN 3 THEN '治安'
+                WHEN 4 THEN '校园欺凌'
+                WHEN 5 THEN '食物中毒'
+                WHEN 6 THEN '自然灾害'
+                WHEN 7 THEN '其他'
+                ELSE '未知'
+            END AS alarm_type_name,
+            a.alarm_level,
+            CASE a.alarm_level
+                WHEN 1 THEN '重大'
+                WHEN 2 THEN '较大'
+                WHEN 3 THEN '一般'
+                ELSE '未知'
+            END AS alarm_level_name,
+            a.status,
+            CASE a.status
+                WHEN 1 THEN '待处置'
+                WHEN 2 THEN '处置中'
+                WHEN 3 THEN '已督办'
+                WHEN 4 THEN '已处置'
+                WHEN 5 THEN '已关闭'
+                ELSE '未知'
+            END AS status_name,
+            a.created_at,
+            CASE
+                WHEN a.handled_at IS NOT NULL AND a.first_response_at IS NOT NULL
+                THEN TIMESTAMPDIFF(MINUTE, a.first_response_at, a.handled_at)
+                ELSE NULL
+            END AS handle_duration_minutes
+        FROM alarm_record a
+        WHERE a.deleted = 0
+        AND a.school_id = #{schoolId}
+        <if test="excludeAlarmId != null">
+            AND a.id != #{excludeAlarmId}
+        </if>
+        ORDER BY a.created_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <select id="selectNotifyStatusSummary" resultType="java.util.Map">
+        SELECT
+            notify_type AS notifyType,
+            COUNT(*) AS total,
+            SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) AS sent,
+            SUM(CASE WHEN status = 2 THEN 1 ELSE 0 END) AS failed
+        FROM notify_record
+        WHERE alarm_id = #{alarmId}
+        GROUP BY notify_type
+        ORDER BY notify_type
+    </select>
+
+    <resultMap id="NotifyUserVOMap" type="com.safetycampus.command.vo.CommandDashboardVO$NotifyUserVO">
+        <result column="id" property="id"/>
+        <result column="target_name" property="targetName"/>
+        <result column="notify_target" property="notifyTarget"/>
+        <result column="notify_type" property="notifyType"/>
+        <result column="notify_type_name" property="notifyTypeName"/>
+        <result column="sent_at" property="sentAt"/>
+        <result column="read_at" property="readAt"/>
+        <result column="fail_reason" property="failReason"/>
+    </resultMap>
+
+    <select id="selectNotifyDetailList" resultMap="NotifyUserVOMap">
+        SELECT
+            n.id,
+            n.target_name,
+            n.notify_target,
+            n.notify_type,
+            CASE n.notify_type
+                WHEN 1 THEN '短信'
+                WHEN 2 THEN 'APP推送'
+                WHEN 3 THEN '电话'
+                WHEN 4 THEN '邮件'
+                ELSE '未知'
+            END AS notify_type_name,
+            n.sent_at,
+            n.read_at,
+            n.fail_reason
+        FROM notify_record n
+        WHERE n.alarm_id = #{alarmId}
+        <if test="status != null">
+            AND n.status = #{status}
+        </if>
+        ORDER BY n.created_at DESC
+    </select>
+
+    <resultMap id="PoliceStationVOMap" type="com.safetycampus.command.vo.CommandDashboardVO$PoliceStationVO">
+        <result column="id" property="id"/>
+        <result column="station_name" property="stationName"/>
+        <result column="liaison" property="liaison"/>
+        <result column="liaison_phone" property="liaisonPhone"/>
+        <result column="duty_phone" property="dutyPhone"/>
+        <result column="address" property="address"/>
+        <result column="distance_km" property="distanceKm"/>
+    </resultMap>
+
+    <select id="selectPoliceStationByTownId" resultMap="PoliceStationVOMap">
+        SELECT
+            p.id,
+            p.station_name,
+            p.liaison,
+            p.liaison_phone,
+            p.duty_phone,
+            p.address,
+            NULL AS distance_km
+        FROM police_station p
+        WHERE p.deleted = 0
+        AND p.status = 1
+        <if test="townId != null">
+            AND EXISTS (
+                SELECT 1 FROM school_info s
+                WHERE s.deleted = 0
+                AND s.town_id = #{townId}
+                AND s.police_station_id = p.id
+            )
+        </if>
+        LIMIT 5
+    </select>
+
+    <resultMap id="SupplementNoteVOMap" type="com.safetycampus.command.vo.CommandDashboardVO$SupplementNoteVO">
+        <result column="id" property="id"/>
+        <result column="alarm_id" property="alarmId"/>
+        <result column="operator_id" property="operatorId"/>
+        <result column="operator_name" property="operatorName"/>
+        <result column="operator_role" property="operatorRole"/>
+        <result column="note_content" property="noteContent"/>
+        <result column="attach_url" property="attachUrl"/>
+        <result column="is_important" property="isImportant"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <select id="selectSupplementNotes" resultMap="SupplementNoteVOMap">
+        SELECT
+            n.id,
+            n.alarm_id,
+            n.operator_id,
+            n.operator_name,
+            n.operator_role,
+            n.note_content,
+            n.attach_url,
+            n.is_important,
+            n.created_at
+        FROM alarm_supplement_note n
+        WHERE n.deleted = 0
+        AND n.alarm_id = #{alarmId}
+        ORDER BY n.is_important DESC, n.created_at DESC
+    </select>
+
+</mapper>

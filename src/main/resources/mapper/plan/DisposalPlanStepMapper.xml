@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.safetycampus.plan.mapper.DisposalPlanStepMapper">
+
+    <resultMap id="BaseResultMap" type="com.safetycampus.plan.entity.DisposalPlanStep">
+        <id column="id" property="id"/>
+        <result column="plan_id" property="planId"/>
+        <result column="step_no" property="stepNo"/>
+        <result column="step_name" property="stepName"/>
+        <result column="step_content" property="stepContent"/>
+        <result column="responsible_unit" property="responsibleUnit"/>
+        <result column="time_limit_minutes" property="timeLimitMinutes"/>
+        <result column="is_required" property="isRequired"/>
+        <result column="notice_roles" property="noticeRoles"/>
+        <result column="sort_order" property="sortOrder"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+        <result column="deleted" property="deleted"/>
+    </resultMap>
+
+</mapper>

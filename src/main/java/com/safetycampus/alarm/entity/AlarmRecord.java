@@ -63,4 +63,6 @@ public class AlarmRecord extends BaseEntity {
     private Long handlerId;
 
     private Long supervisorId;
+
+    private Long planId;
 }

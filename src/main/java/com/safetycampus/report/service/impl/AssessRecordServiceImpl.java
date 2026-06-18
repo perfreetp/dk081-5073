@@ -8,6 +8,7 @@ import com.safetycampus.alarm.enums.AlarmLevelEnum;
 import com.safetycampus.alarm.enums.AlarmStatusEnum;
 import com.safetycampus.alarm.mapper.AlarmRecordMapper;
 import com.safetycampus.common.exception.BusinessException;
+import com.safetycampus.common.result.ResultCode;
 import com.safetycampus.report.dto.AssessQueryDTO;
 import com.safetycampus.report.entity.AssessRecord;
 import com.safetycampus.report.enums.AssessGradeEnum;
@@ -43,7 +44,7 @@ public class AssessRecordServiceImpl extends ServiceImpl<AssessRecordMapper, Ass
     public AssessRecord calculateQuarterAssess(Long schoolId, String statQuarter) {
         SchoolInfo school = schoolInfoMapper.selectById(schoolId);
         if (school == null) {
-            throw new BusinessException("学校不存在");
+            throw BusinessException.of(ResultCode.SCHOOL_NOT_FOUND);
         }
 
         LocalDate[] quarterRange = parseQuarter(statQuarter);

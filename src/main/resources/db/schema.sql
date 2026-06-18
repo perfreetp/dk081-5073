@@ -366,3 +366,107 @@ CREATE TABLE IF NOT EXISTS town_info (
 
 ALTER TABLE school_info ADD COLUMN IF NOT EXISTS town_id BIGINT COMMENT '所属街镇ID' AFTER group_id;
 ALTER TABLE school_info ADD INDEX IF NOT EXISTS idx_town(town_id);
+
+ALTER TABLE alarm_record ADD COLUMN IF NOT EXISTS plan_id BIGINT COMMENT '处置预案ID' AFTER supervisor_id;
+
+ALTER TABLE police_station ADD COLUMN IF NOT EXISTS longitude DECIMAL(10,6) COMMENT '经度' AFTER address;
+ALTER TABLE police_station ADD COLUMN IF NOT EXISTS latitude DECIMAL(10,6) COMMENT '纬度' AFTER longitude;
+
+CREATE TABLE IF NOT EXISTS alarm_supplement_note (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
+    alarm_id BIGINT NOT NULL COMMENT '警情ID',
+    operator_id BIGINT COMMENT '操作人ID',
+    operator_name VARCHAR(50) COMMENT '操作人姓名',
+    operator_role VARCHAR(50) COMMENT '操作人角色',
+    note_content TEXT COMMENT '补充说明内容',
+    attach_url VARCHAR(500) COMMENT '附件URL',
+    is_important TINYINT DEFAULT 0 COMMENT '是否重要:0-否,1-是',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT DEFAULT 0,
+    INDEX idx_alarm(alarm_id),
+    INDEX idx_is_important(is_important)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='警情补充说明表';
+
+CREATE TABLE IF NOT EXISTS disposal_plan (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
+    plan_name VARCHAR(200) NOT NULL COMMENT '预案名称',
+    plan_code VARCHAR(50) COMMENT '预案编码',
+    alarm_level TINYINT NOT NULL COMMENT '适用警情级别:1-重大,2-较大,3-一般',
+    school_types VARCHAR(200) COMMENT '适用学校类型,逗号分隔:1-幼儿园,2-小学,3-初中,4-高中,5-中职,6-高校',
+    description TEXT COMMENT '预案描述',
+    is_enabled TINYINT DEFAULT 1 COMMENT '是否启用:0-禁用,1-启用',
+    sort_order INT DEFAULT 0 COMMENT '排序',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT DEFAULT 0,
+    INDEX idx_alarm_level(alarm_level),
+    INDEX idx_is_enabled(is_enabled),
+    INDEX idx_sort_order(sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='处置预案表';
+
+CREATE TABLE IF NOT EXISTS disposal_plan_step (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
+    plan_id BIGINT NOT NULL COMMENT '预案ID',
+    step_no INT NOT NULL COMMENT '步骤序号',
+    step_name VARCHAR(200) NOT NULL COMMENT '步骤名称',
+    step_content TEXT COMMENT '步骤内容',
+    responsible_unit VARCHAR(100) COMMENT '责任单位',
+    time_limit_minutes INT DEFAULT 0 COMMENT '时限(分钟)',
+    is_required TINYINT DEFAULT 1 COMMENT '是否必填:0-否,1-是',
+    notice_roles VARCHAR(200) COMMENT '通知角色,逗号分隔',
+    sort_order INT DEFAULT 0 COMMENT '排序',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_plan_id(plan_id),
+    INDEX idx_step_no(step_no)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='预案步骤表';
+
+CREATE TABLE IF NOT EXISTS alarm_plan_link (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
+    alarm_id BIGINT NOT NULL COMMENT '警情ID',
+    plan_id BIGINT NOT NULL COMMENT '预案ID',
+    matched_time DATETIME COMMENT '匹配时间',
+    started_at DATETIME COMMENT '启动时间',
+    completed_at DATETIME COMMENT '完成时间',
+    completion_rate DECIMAL(5,2) DEFAULT 0.00 COMMENT '完成率(%)',
+    status TINYINT DEFAULT 1 COMMENT '状态:1-已匹配,2-已启动,3-执行中,4-已完成,5-已取消',
+    summary TEXT COMMENT '总结',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_alarm_id(alarm_id),
+    INDEX idx_plan_id(plan_id),
+    INDEX idx_status(status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='警情预案关联表';
+
+CREATE TABLE IF NOT EXISTS alarm_plan_step_exec (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
+    link_id BIGINT NOT NULL COMMENT '关联ID',
+    alarm_id BIGINT NOT NULL COMMENT '警情ID',
+    plan_step_id BIGINT NOT NULL COMMENT '预案步骤ID',
+    step_no INT NOT NULL COMMENT '步骤序号',
+    step_name VARCHAR(200) NOT NULL COMMENT '步骤名称',
+    responsible_unit VARCHAR(100) COMMENT '责任单位',
+    time_limit_minutes INT DEFAULT 0 COMMENT '时限(分钟)',
+    exec_status TINYINT DEFAULT 1 COMMENT '执行状态:1-未开始,2-进行中,3-已完成,4-已跳过',
+    executed_by BIGINT COMMENT '执行人ID',
+    executed_at DATETIME COMMENT '执行时间',
+    duration_seconds INT DEFAULT 0 COMMENT '耗时(秒)',
+    exec_remark TEXT COMMENT '执行备注',
+    attach_url VARCHAR(500) COMMENT '附件URL',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_link_id(link_id),
+    INDEX idx_alarm_id(alarm_id),
+    INDEX idx_plan_step_id(plan_step_id),
+    INDEX idx_exec_status(exec_status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='预案步骤执行表';
+
+ALTER TABLE sys_user ADD COLUMN IF NOT EXISTS duty_shift TINYINT COMMENT '值班班次:1-白班2-夜班' AFTER status;
+
+ALTER TABLE alarm_flow ADD COLUMN IF NOT EXISTS duty_shift_id BIGINT COMMENT '值班班次ID' AFTER attach_url;
+ALTER TABLE alarm_flow ADD COLUMN IF NOT EXISTS duty_date DATE COMMENT '值班日期' AFTER duty_shift_id;
+ALTER TABLE alarm_flow ADD INDEX IF NOT EXISTS idx_duty_shift(duty_shift_id);
+ALTER TABLE alarm_flow ADD INDEX IF NOT EXISTS idx_duty_date(duty_date);
+
+ALTER TABLE notify_record ADD COLUMN IF NOT EXISTS feedback_at DATETIME COMMENT '反馈时间' AFTER read_at;
+
+ALTER TABLE police_station ADD COLUMN IF NOT EXISTS feedback_deadline_minutes INT DEFAULT 30 COMMENT '派出所反馈时限(分钟)' AFTER status;

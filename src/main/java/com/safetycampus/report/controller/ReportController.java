@@ -2,9 +2,13 @@ package com.safetycampus.report.controller;
 
 import com.safetycampus.common.result.Result;
 import com.safetycampus.report.dto.CompareQueryDTO;
+import com.safetycampus.report.dto.DutyReviewQueryDTO;
 import com.safetycampus.report.dto.ReportStatisticsDTO;
 import com.safetycampus.report.service.ReportService;
 import com.safetycampus.report.vo.CompareResultVO;
+import com.safetycampus.report.vo.DutyReviewSchoolVO;
+import com.safetycampus.report.vo.DutyReviewShiftVO;
+import com.safetycampus.report.vo.DutyReviewSummaryVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -18,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.util.List;
 
 @Tag(name = "统计报表接口", description = "警情统计、处置统计、趋势分析、报表导出等功能")
 @RestController
@@ -161,5 +166,88 @@ public class ReportController {
             default -> "统计报表";
         };
         return typeName + "_" + startDate + "_" + endDate + ".xlsx";
+    }
+
+    @Operation(summary = "值守复盘汇总(班次+学校)")
+    @GetMapping("/duty-review/summary")
+    public Result<DutyReviewSummaryVO> getDutyReviewSummary(
+            @Parameter(description = "开始日期", required = true) @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
+            @Parameter(description = "结束日期", required = true) @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate,
+            @Parameter(description = "值班班次:1-白班 2-夜班") @RequestParam(required = false) Integer dutyShift,
+            @Parameter(description = "值班人ID") @RequestParam(required = false) Long userId,
+            @Parameter(description = "街镇ID") @RequestParam(required = false) Long townId,
+            @Parameter(description = "学校分组ID") @RequestParam(required = false) Long groupId,
+            @Parameter(description = "学校类型") @RequestParam(required = false) Integer schoolType) {
+        DutyReviewQueryDTO queryDTO = buildDutyReviewQuery(startDate, endDate, dutyShift, userId, townId, groupId, schoolType);
+        DutyReviewSummaryVO result = reportService.getDutyReviewSummary(queryDTO);
+        return Result.success(result);
+    }
+
+    @Operation(summary = "值守复盘-按班次维度")
+    @GetMapping("/duty-review/by-shift")
+    public Result<List<DutyReviewShiftVO>> getDutyReviewByShift(
+            @Parameter(description = "开始日期", required = true) @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
+            @Parameter(description = "结束日期", required = true) @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate,
+            @Parameter(description = "值班班次:1-白班 2-夜班") @RequestParam(required = false) Integer dutyShift,
+            @Parameter(description = "值班人ID") @RequestParam(required = false) Long userId,
+            @Parameter(description = "街镇ID") @RequestParam(required = false) Long townId,
+            @Parameter(description = "学校分组ID") @RequestParam(required = false) Long groupId,
+            @Parameter(description = "学校类型") @RequestParam(required = false) Integer schoolType) {
+        DutyReviewQueryDTO queryDTO = buildDutyReviewQuery(startDate, endDate, dutyShift, userId, townId, groupId, schoolType);
+        List<DutyReviewShiftVO> result = reportService.getDutyReviewByShift(queryDTO);
+        return Result.success(result);
+    }
+
+    @Operation(summary = "值守复盘-按学校维度")
+    @GetMapping("/duty-review/by-school")
+    public Result<List<DutyReviewSchoolVO>> getDutyReviewBySchool(
+            @Parameter(description = "开始日期", required = true) @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
+            @Parameter(description = "结束日期", required = true) @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate,
+            @Parameter(description = "值班班次:1-白班 2-夜班") @RequestParam(required = false) Integer dutyShift,
+            @Parameter(description = "值班人ID") @RequestParam(required = false) Long userId,
+            @Parameter(description = "街镇ID") @RequestParam(required = false) Long townId,
+            @Parameter(description = "学校分组ID") @RequestParam(required = false) Long groupId,
+            @Parameter(description = "学校类型") @RequestParam(required = false) Integer schoolType) {
+        DutyReviewQueryDTO queryDTO = buildDutyReviewQuery(startDate, endDate, dutyShift, userId, townId, groupId, schoolType);
+        List<DutyReviewSchoolVO> result = reportService.getDutyReviewBySchool(queryDTO);
+        return Result.success(result);
+    }
+
+    @Operation(summary = "导出值守复盘报表(Excel)")
+    @GetMapping("/duty-review/export")
+    public ResponseEntity<byte[]> exportDutyReview(
+            @Parameter(description = "开始日期", required = true) @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate startDate,
+            @Parameter(description = "结束日期", required = true) @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate endDate,
+            @Parameter(description = "值班班次:1-白班 2-夜班") @RequestParam(required = false) Integer dutyShift,
+            @Parameter(description = "值班人ID") @RequestParam(required = false) Long userId,
+            @Parameter(description = "街镇ID") @RequestParam(required = false) Long townId,
+            @Parameter(description = "学校分组ID") @RequestParam(required = false) Long groupId,
+            @Parameter(description = "学校类型") @RequestParam(required = false) Integer schoolType) {
+        DutyReviewQueryDTO queryDTO = buildDutyReviewQuery(startDate, endDate, dutyShift, userId, townId, groupId, schoolType);
+        byte[] data = reportService.exportDutyReview(queryDTO);
+
+        String fileName = "值守复盘报表_" + startDate + "_" + endDate + ".xlsx";
+        String encodedFileName = URLEncoder.encode(fileName, StandardCharsets.UTF_8).replace("+", "%20");
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+        headers.setContentDispositionFormData("attachment", encodedFileName);
+        headers.setContentLength(data.length);
+
+        return ResponseEntity.ok().headers(headers).body(data);
+    }
+
+    private DutyReviewQueryDTO buildDutyReviewQuery(LocalDate startDate, LocalDate endDate,
+                                                     Integer dutyShift, Long userId,
+                                                     Long townId, Long groupId, Integer schoolType) {
+        DutyReviewQueryDTO queryDTO = new DutyReviewQueryDTO();
+        queryDTO.setStartDate(startDate);
+        queryDTO.setEndDate(endDate);
+        queryDTO.setDutyShift(dutyShift);
+        queryDTO.setUserId(userId);
+        queryDTO.setTownId(townId);
+        queryDTO.setGroupId(groupId);
+        queryDTO.setSchoolType(schoolType);
+        return queryDTO;
     }
 }

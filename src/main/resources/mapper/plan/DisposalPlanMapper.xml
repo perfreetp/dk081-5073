@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.safetycampus.plan.mapper.DisposalPlanMapper">
+
+    <resultMap id="BaseResultMap" type="com.safetycampus.plan.entity.DisposalPlan">
+        <id column="id" property="id"/>
+        <result column="plan_name" property="planName"/>
+        <result column="plan_code" property="planCode"/>
+        <result column="alarm_level" property="alarmLevel"/>
+        <result column="school_types" property="schoolTypes"/>
+        <result column="description" property="description"/>
+        <result column="is_enabled" property="isEnabled"/>
+        <result column="sort_order" property="sortOrder"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+        <result column="deleted" property="deleted"/>
+    </resultMap>
+
+    <select id="selectPageByCondition" resultMap="BaseResultMap">
+        SELECT * FROM disposal_plan
+        WHERE deleted = 0
+        <if test="query.planName != null and query.planName != ''">
+            AND plan_name LIKE CONCAT('%', #{query.planName}, '%')
+        </if>
+        <if test="query.planCode != null and query.planCode != ''">
+            AND plan_code LIKE CONCAT('%', #{query.planCode}, '%')
+        </if>
+        <if test="query.alarmLevel != null">
+            AND alarm_level = #{query.alarmLevel}
+        </if>
+        <if test="query.isEnabled != null">
+            AND is_enabled = #{query.isEnabled}
+        </if>
+        ORDER BY sort_order ASC, id DESC
+        LIMIT #{query.pageSize} OFFSET #{query.offset}
+    </select>
+
+    <select id="countByCondition" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM disposal_plan
+        WHERE deleted = 0
+        <if test="query.planName != null and query.planName != ''">
+            AND plan_name LIKE CONCAT('%', #{query.planName}, '%')
+        </if>
+        <if test="query.planCode != null and query.planCode != ''">
+            AND plan_code LIKE CONCAT('%', #{query.planCode}, '%')
+        </if>
+        <if test="query.alarmLevel != null">
+            AND alarm_level = #{query.alarmLevel}
+        </if>
+        <if test="query.isEnabled != null">
+            AND is_enabled = #{query.isEnabled}
+        </if>
+    </select>
+
+</mapper>

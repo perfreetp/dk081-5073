@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.safetycampus.plan.mapper.AlarmPlanStepExecMapper">
+
+    <resultMap id="BaseResultMap" type="com.safetycampus.plan.entity.AlarmPlanStepExec">
+        <id column="id" property="id"/>
+        <result column="link_id" property="linkId"/>
+        <result column="alarm_id" property="alarmId"/>
+        <result column="plan_step_id" property="planStepId"/>
+        <result column="step_no" property="stepNo"/>
+        <result column="step_name" property="stepName"/>
+        <result column="responsible_unit" property="responsibleUnit"/>
+        <result column="time_limit_minutes" property="timeLimitMinutes"/>
+        <result column="exec_status" property="execStatus"/>
+        <result column="executed_by" property="executedBy"/>
+        <result column="executed_at" property="executedAt"/>
+        <result column="duration_seconds" property="durationSeconds"/>
+        <result column="exec_remark" property="execRemark"/>
+        <result column="attach_url" property="attachUrl"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+        <result column="deleted" property="deleted"/>
+    </resultMap>
+
+</mapper>

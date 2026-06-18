@@ -31,4 +31,6 @@ public class SysUser extends BaseEntity {
     private Long policeStationId;
 
     private Integer status;
+
+    private Integer dutyShift;
 }

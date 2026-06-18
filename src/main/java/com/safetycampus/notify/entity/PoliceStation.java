@@ -22,7 +22,13 @@ public class PoliceStation extends BaseEntity {
 
     private String address;
 
+    private java.math.BigDecimal longitude;
+
+    private java.math.BigDecimal latitude;
+
     private Integer sortOrder;
 
     private Integer status;
+
+    private Integer feedbackDeadlineMinutes;
 }
