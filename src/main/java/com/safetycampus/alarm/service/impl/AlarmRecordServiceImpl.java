@@ -17,6 +17,7 @@ import com.safetycampus.alarm.service.AlarmFlowService;
 import com.safetycampus.alarm.service.AlarmRecordService;
 import com.safetycampus.alarm.mapper.HolidayConfigMapper;
 import com.safetycampus.common.exception.BusinessException;
+import com.safetycampus.common.result.ResultCode;
 import jakarta.annotation.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -129,10 +130,10 @@ public class AlarmRecordServiceImpl extends ServiceImpl<AlarmRecordMapper, Alarm
     public boolean escalateCriticalAlarm(Long alarmId, Long operatorId, String operatorName) {
         AlarmRecord record = getById(alarmId);
         if (record == null) {
-            throw new BusinessException("警情不存在");
+            throw BusinessException.of(ResultCode.ALARM_NOT_FOUND);
         }
         if (record.getIsEscalated() == 1) {
-            throw new BusinessException("该警情已上推");
+            throw BusinessException.of(ResultCode.ALARM_STATUS_NOT_ALLOWED);
         }
 
         record.setIsEscalated(1);

@@ -13,11 +13,11 @@ public interface AlarmDeviceService extends IService<AlarmDevice> {
 
     List<AlarmDevice> listBySchoolId(Long schoolId);
 
-    boolean bindDevice(DeviceBindDTO dto);
+    void bindDevice(DeviceBindDTO dto);
 
-    boolean updateDevice(DeviceBindDTO dto);
+    void updateDevice(DeviceBindDTO dto);
 
-    boolean unbindDevice(Long id);
+    void unbindDevice(Long id);
 
-    boolean updateDeviceStatus(String deviceCode, Integer status);
+    void updateDeviceStatus(String deviceCode, Integer status);
 }

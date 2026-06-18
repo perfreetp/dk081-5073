@@ -138,11 +138,17 @@ CREATE TABLE IF NOT EXISTS alarm_flow (
     operator_id BIGINT COMMENT '操作人ID',
     operator_name VARCHAR(50) COMMENT '操作人姓名',
     operator_role VARCHAR(50) COMMENT '操作人角色',
+    party_type TINYINT COMMENT '参与方类型:1-教育局,2-学校,3-派出所,4-系统',
+    party_id BIGINT COMMENT '参与方ID',
+    party_name VARCHAR(50) COMMENT '参与方名称',
+    duration_seconds INT COMMENT '耗时(秒)',
+    location VARCHAR(200) COMMENT '操作位置',
     remark TEXT COMMENT '处理意见',
     attach_url VARCHAR(500) COMMENT '附件URL',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_alarm(alarm_id),
-    INDEX idx_type(flow_type)
+    INDEX idx_type(flow_type),
+    INDEX idx_party_type(party_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='警情流转记录表';
 
 CREATE TABLE IF NOT EXISTS alarm_remind (
@@ -308,3 +314,55 @@ CREATE TABLE IF NOT EXISTS sys_audit_log (
     INDEX idx_module(module),
     INDEX idx_created(created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='审计日志表';
+
+CREATE TABLE IF NOT EXISTS notify_rule (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
+    rule_name VARCHAR(100) NOT NULL COMMENT '规则名称',
+    rule_type TINYINT NOT NULL COMMENT '规则类型:1-默认规则,2-节假日规则,3-夜间规则,4-自定义规则',
+    priority INT DEFAULT 0 COMMENT '优先级,数字越大优先级越高',
+    is_enabled TINYINT DEFAULT 1 COMMENT '是否启用:0-禁用,1-启用',
+    holiday_mode TINYINT DEFAULT 0 COMMENT '节假日模式:0-否,1-是',
+    night_mode TINYINT DEFAULT 0 COMMENT '夜间模式:0-否,1-是',
+    school_types VARCHAR(200) COMMENT '适用学校类型,逗号分隔:1-幼儿园,2-小学,3-初中,4-高中,5-中职,6-高校',
+    alarm_levels VARCHAR(100) COMMENT '适用警情级别,逗号分隔:1-重大,2-较大,3-一般',
+    notify_channels VARCHAR(100) COMMENT '通知渠道,逗号分隔:1-短信,2-APP,3-电话,4-邮件',
+    notify_targets TEXT COMMENT '通知目标配置(JSON)',
+    notify_template VARCHAR(500) COMMENT '通知模板',
+    description VARCHAR(500) COMMENT '规则描述',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT DEFAULT 0,
+    INDEX idx_rule_type(rule_type),
+    INDEX idx_is_enabled(is_enabled),
+    INDEX idx_priority(priority)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='通知规则表';
+
+CREATE TABLE IF NOT EXISTS notify_rule_target (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
+    rule_id BIGINT NOT NULL COMMENT '规则ID',
+    target_type TINYINT NOT NULL COMMENT '目标类型:1-教育局值班,2-学校保卫,3-派出所,4-指定人员',
+    target_id BIGINT COMMENT '目标ID',
+    target_name VARCHAR(50) COMMENT '目标名称',
+    target_phone VARCHAR(20) COMMENT '目标电话',
+    sort_order INT DEFAULT 0 COMMENT '排序',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT DEFAULT 0,
+    INDEX idx_rule_id(rule_id),
+    INDEX idx_target_type(target_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='通知规则目标表';
+
+CREATE TABLE IF NOT EXISTS town_info (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '主键',
+    town_code VARCHAR(50) NOT NULL UNIQUE COMMENT '街镇编码',
+    town_name VARCHAR(100) NOT NULL COMMENT '街镇名称',
+    sort_order INT DEFAULT 0 COMMENT '排序',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    deleted TINYINT DEFAULT 0,
+    INDEX idx_town_code(town_code),
+    INDEX idx_sort_order(sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='街镇信息表';
+
+ALTER TABLE school_info ADD COLUMN IF NOT EXISTS town_id BIGINT COMMENT '所属街镇ID' AFTER group_id;
+ALTER TABLE school_info ADD INDEX IF NOT EXISTS idx_town(town_id);

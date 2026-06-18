@@ -21,6 +21,9 @@ public class Result<T> implements Serializable {
     @Schema(description = "时间戳")
     private Long timestamp;
 
+    @Schema(description = "接口方法")
+    private String method;
+
     private Result() {
         this.timestamp = System.currentTimeMillis();
     }
@@ -62,5 +65,14 @@ public class Result<T> implements Serializable {
 
     public static <T> Result<T> fail(ResultCode resultCode) {
         return fail(resultCode.getCode(), resultCode.getMessage());
+    }
+
+    public static <T> Result<T> fail(ResultCode resultCode, Object... args) {
+        return fail(resultCode.getCode(), resultCode.formatMessage(args));
+    }
+
+    public Result<T> method(String method) {
+        this.method = method;
+        return this;
     }
 }

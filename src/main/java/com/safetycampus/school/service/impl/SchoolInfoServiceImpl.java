@@ -3,6 +3,8 @@ package com.safetycampus.school.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.safetycampus.common.exception.BusinessException;
+import com.safetycampus.common.result.ResultCode;
 import com.safetycampus.school.dto.SchoolInfoDTO;
 import com.safetycampus.school.dto.SchoolInfoQueryDTO;
 import com.safetycampus.school.entity.SchoolInfo;
@@ -48,7 +50,7 @@ public class SchoolInfoServiceImpl extends ServiceImpl<SchoolInfoMapper, SchoolI
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public boolean addSchool(SchoolInfoDTO dto) {
+    public void addSchool(SchoolInfoDTO dto) {
         SchoolInfo school = new SchoolInfo();
         BeanUtils.copyProperties(dto, school);
         if (school.getDeviceCount() == null) {
@@ -66,26 +68,50 @@ public class SchoolInfoServiceImpl extends ServiceImpl<SchoolInfoMapper, SchoolI
         if (school.getStatus() == null) {
             school.setStatus(1);
         }
-        return this.save(school);
+        boolean saved = this.save(school);
+        if (!saved) {
+            throw BusinessException.of(ResultCode.DATABASE_ERROR);
+        }
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public boolean updateSchool(SchoolInfoDTO dto) {
+    public void updateSchool(SchoolInfoDTO dto) {
+        SchoolInfo existing = this.getById(dto.getId());
+        if (existing == null) {
+            throw BusinessException.of(ResultCode.SCHOOL_NOT_FOUND);
+        }
+        if (existing.getStatus() != null && existing.getStatus() == 0) {
+            throw BusinessException.of(ResultCode.SCHOOL_DISABLED);
+        }
         SchoolInfo school = new SchoolInfo();
         BeanUtils.copyProperties(dto, school);
-        return this.updateById(school);
+        boolean updated = this.updateById(school);
+        if (!updated) {
+            throw BusinessException.of(ResultCode.DATABASE_ERROR);
+        }
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public boolean deleteSchool(Long id) {
-        return this.removeById(id);
+    public void deleteSchool(Long id) {
+        SchoolInfo existing = this.getById(id);
+        if (existing == null) {
+            throw BusinessException.of(ResultCode.SCHOOL_NOT_FOUND);
+        }
+        boolean removed = this.removeById(id);
+        if (!removed) {
+            throw BusinessException.of(ResultCode.DATABASE_ERROR);
+        }
     }
 
     @Override
     public SchoolInfo getSchoolDetail(Long id) {
-        return this.getById(id);
+        SchoolInfo school = this.getById(id);
+        if (school == null) {
+            throw BusinessException.of(ResultCode.SCHOOL_NOT_FOUND);
+        }
+        return school;
     }
 
     @Override

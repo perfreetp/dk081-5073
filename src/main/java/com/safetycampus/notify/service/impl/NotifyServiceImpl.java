@@ -17,6 +17,9 @@ import com.safetycampus.notify.enums.NotifyTypeEnum;
 import com.safetycampus.notify.mapper.NotifyRecordMapper;
 import com.safetycampus.notify.service.NotifyService;
 import com.safetycampus.notify.service.PoliceStationService;
+import com.safetycampus.notifyrule.entity.NotifyRule;
+import com.safetycampus.notifyrule.entity.NotifyRuleTarget;
+import com.safetycampus.notifyrule.service.NotifyRuleEngine;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -48,6 +51,9 @@ public class NotifyServiceImpl extends ServiceImpl<NotifyRecordMapper, NotifyRec
 
     @Resource
     private ObjectMapper objectMapper;
+
+    @Resource
+    private NotifyRuleEngine notifyRuleEngine;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -246,5 +252,58 @@ public class NotifyServiceImpl extends ServiceImpl<NotifyRecordMapper, NotifyRec
                     record.getContent(), record.getAlarmId());
             default -> false;
         };
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean notifyByRule(Long schoolId, Integer alarmLevel, Integer alarmType, Long alarmId, String title, String content) {
+        log.info("根据规则发送通知 - schoolId: {}, alarmLevel: {}, alarmType: {}", schoolId, alarmLevel, alarmType);
+
+        List<NotifyRule> matchedRules = notifyRuleEngine.matchRules(schoolId, alarmLevel, alarmType);
+        if (matchedRules.isEmpty()) {
+            log.warn("未匹配到任何通知规则，使用默认逻辑");
+            return false;
+        }
+
+        List<NotifyRuleTarget> targets = notifyRuleEngine.getTargetsByRules(matchedRules);
+        List<Integer> channels = notifyRuleEngine.getNotifyChannelsByRules(matchedRules);
+        String template = notifyRuleEngine.getNotifyTemplateByRules(matchedRules);
+
+        if (targets.isEmpty()) {
+            log.warn("匹配到规则但没有通知目标");
+            return false;
+        }
+
+        String notifyTitle = title;
+        String notifyContent = content;
+        if (template != null && !template.isEmpty()) {
+            notifyContent = template.replace("{title}", title).replace("{content}", content);
+        }
+
+        int successCount = 0;
+        for (NotifyRuleTarget target : targets) {
+            String targetPhone = target.getTargetPhone();
+            String targetName = target.getTargetName();
+            if (targetPhone == null || targetPhone.isEmpty()) {
+                continue;
+            }
+            for (Integer channel : channels) {
+                boolean result = switch (channel) {
+                    case 1 -> sendSms(targetPhone, targetName, notifyTitle, notifyContent, "SMS_ALARM", alarmId);
+                    case 2 -> sendAppPush(targetPhone, targetName, notifyTitle, notifyContent, alarmId);
+                    case 3 -> sendCall(targetPhone, targetName, notifyTitle, notifyContent, alarmId);
+                    case 4 -> true;
+                    default -> false;
+                };
+                if (result) {
+                    successCount++;
+                }
+            }
+        }
+
+        log.info("规则通知完成 - 匹配规则数: {}, 目标数: {}, 渠道数: {}, 成功次数: {}",
+                matchedRules.size(), targets.size(), channels.size(), successCount);
+
+        return successCount > 0;
     }
 }

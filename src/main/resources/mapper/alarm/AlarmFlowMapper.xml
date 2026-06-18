@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.safetycampus.alarm.mapper.AlarmFlowMapper">
+
+    <resultMap id="BaseResultMap" type="com.safetycampus.alarm.entity.AlarmFlow">
+        <id column="id" property="id"/>
+        <result column="alarm_id" property="alarmId"/>
+        <result column="flow_type" property="flowType"/>
+        <result column="operator_id" property="operatorId"/>
+        <result column="operator_name" property="operatorName"/>
+        <result column="operator_role" property="operatorRole"/>
+        <result column="party_type" property="partyType"/>
+        <result column="party_id" property="partyId"/>
+        <result column="party_name" property="partyName"/>
+        <result column="duration_seconds" property="durationSeconds"/>
+        <result column="location" property="location"/>
+        <result column="remark" property="remark"/>
+        <result column="attach_url" property="attachUrl"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+        <result column="deleted" property="deleted"/>
+    </resultMap>
+
+    <select id="selectTimelineByQuery" parameterType="com.safetycampus.alarm.dto.AlarmTimelineQueryDTO" resultMap="BaseResultMap">
+        SELECT
+            id, alarm_id, flow_type, operator_id, operator_name, operator_role,
+            party_type, party_id, party_name, duration_seconds, location,
+            remark, attach_url, created_at, updated_at, deleted
+        FROM alarm_flow
+        WHERE alarm_id = #{alarmId}
+        AND deleted = 0
+        <if test="partyTypes != null and partyTypes.size() > 0">
+            AND party_type IN
+            <foreach collection="partyTypes" item="type" open="(" separator="," close=")">
+                #{type}
+            </foreach>
+        </if>
+        <if test="flowTypes != null and flowTypes.size() > 0">
+            AND flow_type IN
+            <foreach collection="flowTypes" item="type" open="(" separator="," close=")">
+                #{type}
+            </foreach>
+        </if>
+        <if test="startTime != null">
+            AND created_at >= #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND created_at <= #{endTime}
+        </if>
+        ORDER BY created_at ASC, id ASC
+    </select>
+
+</mapper>

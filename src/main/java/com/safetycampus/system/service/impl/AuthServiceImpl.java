@@ -4,6 +4,7 @@ import com.safetycampus.common.context.LoginUser;
 import com.safetycampus.common.context.UserContext;
 import com.safetycampus.common.enums.RoleTypeEnum;
 import com.safetycampus.common.exception.BusinessException;
+import com.safetycampus.common.result.ResultCode;
 import com.safetycampus.common.utils.JwtUtil;
 import com.safetycampus.system.dto.LoginDTO;
 import com.safetycampus.system.dto.LoginVO;
@@ -34,13 +35,13 @@ public class AuthServiceImpl implements AuthService {
     public LoginVO login(LoginDTO loginDTO) {
         SysUser user = sysUserService.getByUsername(loginDTO.getUsername());
         if (user == null) {
-            throw new BusinessException("用户名或密码错误");
+            throw BusinessException.of(ResultCode.PASSWORD_ERROR);
         }
         if (user.getStatus() == null || user.getStatus() == 0) {
-            throw new BusinessException("账号已被禁用");
+            throw BusinessException.of(ResultCode.ACCOUNT_LOCKED);
         }
         if (!passwordEncoder.matches(loginDTO.getPassword(), user.getPassword())) {
-            throw new BusinessException("用户名或密码错误");
+            throw BusinessException.of(ResultCode.PASSWORD_ERROR);
         }
 
         LoginUser loginUser = LoginUser.builder()

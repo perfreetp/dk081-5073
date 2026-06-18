@@ -45,22 +45,22 @@ public class AlarmDeviceController {
     @PostMapping
     @Operation(summary = "绑定设备")
     public Result<Void> bind(@Valid @RequestBody DeviceBindDTO dto) {
-        boolean result = alarmDeviceService.bindDevice(dto);
-        return result ? Result.success() : Result.fail();
+        alarmDeviceService.bindDevice(dto);
+        return Result.success();
     }
 
     @PutMapping
     @Operation(summary = "更新设备信息")
     public Result<Void> update(@Valid @RequestBody DeviceBindDTO dto) {
-        boolean result = alarmDeviceService.updateDevice(dto);
-        return result ? Result.success() : Result.fail();
+        alarmDeviceService.updateDevice(dto);
+        return Result.success();
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "解绑设备")
     public Result<Void> unbind(@PathVariable Long id) {
-        boolean result = alarmDeviceService.unbindDevice(id);
-        return result ? Result.success() : Result.fail();
+        alarmDeviceService.unbindDevice(id);
+        return Result.success();
     }
 
     @PutMapping("/status")
@@ -68,7 +68,7 @@ public class AlarmDeviceController {
     public Result<Void> updateStatus(
             @RequestParam String deviceCode,
             @RequestParam Integer status) {
-        boolean result = alarmDeviceService.updateDeviceStatus(deviceCode, status);
-        return result ? Result.success() : Result.fail();
+        alarmDeviceService.updateDeviceStatus(deviceCode, status);
+        return Result.success();
     }
 }

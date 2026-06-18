@@ -30,4 +30,6 @@ public interface NotifyService extends IService<NotifyRecord> {
     boolean markAsRead(Long id);
 
     boolean resend(Long id);
+
+    boolean notifyByRule(Long schoolId, Integer alarmLevel, Integer alarmType, Long alarmId, String title, String content);
 }

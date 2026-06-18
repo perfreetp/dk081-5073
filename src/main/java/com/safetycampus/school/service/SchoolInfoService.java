@@ -13,11 +13,11 @@ public interface SchoolInfoService extends IService<SchoolInfo> {
 
     IPage<SchoolInfo> selectPage(SchoolInfoQueryDTO queryDTO);
 
-    boolean addSchool(SchoolInfoDTO dto);
+    void addSchool(SchoolInfoDTO dto);
 
-    boolean updateSchool(SchoolInfoDTO dto);
+    void updateSchool(SchoolInfoDTO dto);
 
-    boolean deleteSchool(Long id);
+    void deleteSchool(Long id);
 
     SchoolInfo getSchoolDetail(Long id);
 

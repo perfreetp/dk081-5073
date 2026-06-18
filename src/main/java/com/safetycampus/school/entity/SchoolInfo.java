@@ -47,6 +47,9 @@ public class SchoolInfo extends BaseEntity {
     @Schema(description = "学校分组ID")
     private Long groupId;
 
+    @Schema(description = "所属街镇ID")
+    private Long townId;
+
     @Schema(description = "经度")
     private BigDecimal longitude;
 

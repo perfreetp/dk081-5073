@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.safetycampus.report.mapper.ReportMapper">
+
+    <select id="selectAlarmStatsByPeriod" resultType="java.util.Map">
+        SELECT
+            s.id AS school_id,
+            s.school_name,
+            s.school_type,
+            COUNT(a.id) AS alarm_count,
+            SUM(CASE WHEN a.alarm_level = 1 THEN 1 ELSE 0 END) AS critical_alarm_count,
+            SUM(CASE WHEN a.status IN (2, 3) THEN 1 ELSE 0 END) AS handled_count,
+            AVG(CASE WHEN a.first_response_at IS NOT NULL THEN
+                TIMESTAMPDIFF(SECOND, a.created_at, a.first_response_at) END) AS avg_response_time
+        FROM school_info s
+        LEFT JOIN alarm_record a ON s.id = a.school_id
+            AND a.created_at &gt;= #{startDate}
+            AND a.created_at &lt;= #{endDate}
+            AND a.deleted = 0
+        WHERE s.status = 1
+        <if test="schoolId != null">
+            AND s.id = #{schoolId}
+        </if>
+        <if test="groupId != null">
+            AND s.group_id = #{groupId}
+        </if>
+        <if test="townId != null">
+            AND s.town_id = #{townId}
+        </if>
+        GROUP BY s.id, s.school_name, s.school_type
+        ORDER BY alarm_count DESC
+    </select>
+
+    <select id="selectRankByPeriod" resultType="java.util.Map">
+        SELECT
+            school_id,
+            school_name,
+            alarm_count,
+            avg_response_time,
+            handle_rate,
+            timeout_count,
+            (@rowNum := @rowNum + 1) AS rank_num
+        FROM (
+            SELECT
+                s.id AS school_id,
+                s.school_name,
+                COUNT(a.id) AS alarm_count,
+                AVG(CASE WHEN a.first_response_at IS NOT NULL THEN
+                    TIMESTAMPDIFF(SECOND, a.created_at, a.first_response_at) END) AS avg_response_time,
+                SUM(CASE WHEN a.status IN (2, 3) THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(a.id), 0) AS handle_rate,
+                SUM(CASE WHEN a.first_response_at IS NOT NULL AND
+                    TIMESTAMPDIFF(SECOND, a.created_at, a.first_response_at) &gt;
+                    CASE a.alarm_level WHEN 1 THEN 300 WHEN 2 THEN 600 ELSE 1800 END
+                    THEN 1 ELSE 0 END) AS timeout_count
+            FROM school_info s
+            LEFT JOIN alarm_record a ON s.id = a.school_id
+                AND a.created_at &gt;= #{startDate}
+                AND a.created_at &lt;= #{endDate}
+                AND a.deleted = 0
+            WHERE s.status = 1
+            <if test="schoolId != null">
+                AND s.id = #{schoolId}
+            </if>
+            <if test="groupId != null">
+                AND s.group_id = #{groupId}
+            </if>
+            <if test="townId != null">
+                AND s.town_id = #{townId}
+            </if>
+            GROUP BY s.id, s.school_name
+            ORDER BY alarm_count DESC, avg_response_time DESC
+        ) t, (SELECT @rowNum := 0) r
+    </select>
+
+    <select id="selectTimeoutStatsByPeriod" resultType="java.util.Map">
+        SELECT
+            s.id AS school_id,
+            s.school_name,
+            COUNT(a.id) AS total_alarm_count,
+            SUM(CASE WHEN a.first_response_at IS NOT NULL AND
+                TIMESTAMPDIFF(SECOND, a.created_at, a.first_response_at) &gt;
+                CASE a.alarm_level WHEN 1 THEN 300 WHEN 2 THEN 600 ELSE 1800 END
+                THEN 1 ELSE 0 END) AS timeout_count,
+            AVG(CASE WHEN a.first_response_at IS NOT NULL THEN
+                TIMESTAMPDIFF(SECOND, a.created_at, a.first_response_at) END) AS avg_response_time,
+            SUM(CASE WHEN a.alarm_level = 1 THEN 1 ELSE 0 END) AS critical_alarm_count
+        FROM school_info s
+        LEFT JOIN alarm_record a ON s.id = a.school_id
+            AND a.created_at &gt;= #{startDate}
+            AND a.created_at &lt;= #{endDate}
+            AND a.deleted = 0
+        WHERE s.status = 1
+        <if test="schoolId != null">
+            AND s.id = #{schoolId}
+        </if>
+        <if test="groupId != null">
+            AND s.group_id = #{groupId}
+        </if>
+        <if test="townId != null">
+            AND s.town_id = #{townId}
+        </if>
+        GROUP BY s.id, s.school_name
+        ORDER BY timeout_count DESC
+    </select>
+
+</mapper>

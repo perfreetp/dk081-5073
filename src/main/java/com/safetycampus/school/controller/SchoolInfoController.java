@@ -38,22 +38,22 @@ public class SchoolInfoController {
     @PostMapping
     @Operation(summary = "新增学校")
     public Result<Void> add(@Valid @RequestBody SchoolInfoDTO dto) {
-        boolean result = schoolInfoService.addSchool(dto);
-        return result ? Result.success() : Result.fail();
+        schoolInfoService.addSchool(dto);
+        return Result.success();
     }
 
     @PutMapping
     @Operation(summary = "编辑学校")
     public Result<Void> update(@Valid @RequestBody SchoolInfoDTO dto) {
-        boolean result = schoolInfoService.updateSchool(dto);
-        return result ? Result.success() : Result.fail();
+        schoolInfoService.updateSchool(dto);
+        return Result.success();
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "删除学校")
     public Result<Void> delete(@PathVariable Long id) {
-        boolean result = schoolInfoService.deleteSchool(id);
-        return result ? Result.success() : Result.fail();
+        schoolInfoService.deleteSchool(id);
+        return Result.success();
     }
 
     @GetMapping("/list")

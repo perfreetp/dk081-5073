@@ -46,12 +46,24 @@ public class AlarmNotifyListener {
                     alarmRecord.getLocation(),
                     alarmRecord.getAlarmContent());
 
-            if (AlarmLevelEnum.CRITICAL.getCode().equals(alarmRecord.getAlarmLevel())) {
-                handleCriticalAlarm(alarmRecord, title, content);
-            } else if (AlarmLevelEnum.MAJOR.getCode().equals(alarmRecord.getAlarmLevel())) {
-                handleMajorAlarm(alarmRecord, title, content);
-            } else {
-                handleGeneralAlarm(alarmRecord, title, content);
+            boolean ruleResult = notifyService.notifyByRule(
+                    alarmRecord.getSchoolId(),
+                    alarmRecord.getAlarmLevel(),
+                    alarmRecord.getAlarmType(),
+                    alarmRecord.getId(),
+                    title,
+                    content
+            );
+
+            if (!ruleResult) {
+                log.info("规则匹配失败或未配置规则，使用默认通知逻辑");
+                if (AlarmLevelEnum.CRITICAL.getCode().equals(alarmRecord.getAlarmLevel())) {
+                    handleCriticalAlarm(alarmRecord, title, content);
+                } else if (AlarmLevelEnum.MAJOR.getCode().equals(alarmRecord.getAlarmLevel())) {
+                    handleMajorAlarm(alarmRecord, title, content);
+                } else {
+                    handleGeneralAlarm(alarmRecord, title, content);
+                }
             }
 
             log.info("警情通知处理完成 - 警情ID: {}", alarmRecord.getId());

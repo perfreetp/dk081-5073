@@ -23,6 +23,16 @@ public class AlarmFlow extends BaseEntity {
 
     private String operatorRole;
 
+    private Integer partyType;
+
+    private Long partyId;
+
+    private String partyName;
+
+    private Integer durationSeconds;
+
+    private String location;
+
     private String remark;
 
     private String attachUrl;

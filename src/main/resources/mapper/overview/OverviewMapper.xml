@@ -1,0 +1,319 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.safetycampus.overview.mapper.OverviewMapper">
+
+    <sql id="baseWhere">
+        <where>
+            a.deleted = 0
+            <if test="query.schoolId != null">
+                AND a.school_id = #{query.schoolId}
+            </if>
+            <if test="query.townId != null">
+                AND s.town_id = #{query.townId}
+            </if>
+            <if test="query.schoolType != null">
+                AND s.school_type = #{query.schoolType}
+            </if>
+            <if test="query.alarmType != null">
+                AND a.alarm_type = #{query.alarmType}
+            </if>
+            <if test="query.startTime != null">
+                AND a.created_at >= #{query.startTime}
+            </if>
+            <if test="query.endTime != null">
+                AND a.created_at <= #{query.endTime}
+            </if>
+        </where>
+    </sql>
+
+    <sql id="alarmJoinSchool">
+        FROM alarm_record a
+        LEFT JOIN school_info s ON a.school_id = s.id
+    </sql>
+
+    <select id="selectTodayAlarmCount" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        <include refid="alarmJoinSchool"/>
+        <include refid="baseWhere"/>
+        AND DATE(a.created_at) = CURDATE()
+    </select>
+
+    <select id="selectTodayCriticalCount" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        <include refid="alarmJoinSchool"/>
+        <include refid="baseWhere"/>
+        AND DATE(a.created_at) = CURDATE()
+        AND a.alarm_level = 1
+    </select>
+
+    <select id="selectTodayTimeoutCount" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        <include refid="alarmJoinSchool"/>
+        <include refid="baseWhere"/>
+        AND DATE(a.created_at) = CURDATE()
+        AND a.first_response_at IS NOT NULL
+        AND TIMESTAMPDIFF(SECOND, a.created_at, a.first_response_at) >
+        CASE a.alarm_level
+            WHEN 1 THEN 300
+            WHEN 2 THEN 600
+            ELSE 1800
+        END
+    </select>
+
+    <select id="selectProcessingCount" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        <include refid="alarmJoinSchool"/>
+        <include refid="baseWhere"/>
+        AND a.status IN (2, 3)
+    </select>
+
+    <select id="selectHandledCount" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        <include refid="alarmJoinSchool"/>
+        <include refid="baseWhere"/>
+        AND a.status = 4
+    </select>
+
+    <select id="selectClosedCount" resultType="java.lang.Long">
+        SELECT COUNT(*)
+        <include refid="alarmJoinSchool"/>
+        <include refid="baseWhere"/>
+        AND a.status = 5
+    </select>
+
+    <select id="selectAvgTime" resultType="java.util.Map">
+        SELECT
+            AVG(CASE WHEN a.first_response_at IS NOT NULL
+                THEN TIMESTAMPDIFF(SECOND, a.created_at, a.first_response_at)
+                ELSE NULL END) AS avgResponseTime,
+            AVG(CASE WHEN a.handled_at IS NOT NULL AND a.first_response_at IS NOT NULL
+                THEN TIMESTAMPDIFF(SECOND, a.first_response_at, a.handled_at)
+                ELSE NULL END) AS avgHandleTime
+        <include refid="alarmJoinSchool"/>
+        <include refid="baseWhere"/>
+    </select>
+
+    <resultMap id="SchoolTypeDistributionMap" type="com.safetycampus.overview.vo.OverviewDashboardVO$SchoolTypeDistribution">
+        <result column="type" property="type"/>
+        <result column="name" property="name"/>
+        <result column="count" property="count"/>
+    </resultMap>
+
+    <select id="selectSchoolTypeDistribution" resultMap="SchoolTypeDistributionMap">
+        SELECT
+            s.school_type AS type,
+            CASE s.school_type
+                WHEN 1 THEN '幼儿园'
+                WHEN 2 THEN '小学'
+                WHEN 3 THEN '初中'
+                WHEN 4 THEN '高中'
+                WHEN 5 THEN '中职'
+                WHEN 6 THEN '高校'
+                ELSE '未知'
+            END AS name,
+            COUNT(*) AS count
+        <include refid="alarmJoinSchool"/>
+        <include refid="baseWhere"/>
+        GROUP BY s.school_type
+        ORDER BY count DESC
+    </select>
+
+    <resultMap id="TownDistributionMap" type="com.safetycampus.overview.vo.OverviewDashboardVO$TownDistribution">
+        <result column="townId" property="townId"/>
+        <result column="townName" property="townName"/>
+        <result column="count" property="count"/>
+    </resultMap>
+
+    <select id="selectTownDistribution" resultMap="TownDistributionMap">
+        SELECT
+            t.id AS townId,
+            t.town_name AS townName,
+            COUNT(*) AS count
+        <include refid="alarmJoinSchool"/>
+        LEFT JOIN town_info t ON s.town_id = t.id
+        <include refid="baseWhere"/>
+        AND t.id IS NOT NULL
+        GROUP BY t.id, t.town_name
+        ORDER BY count DESC
+    </select>
+
+    <resultMap id="AlarmTypeDistributionMap" type="com.safetycampus.overview.vo.OverviewDashboardVO$AlarmTypeDistribution">
+        <result column="type" property="type"/>
+        <result column="name" property="name"/>
+        <result column="count" property="count"/>
+    </resultMap>
+
+    <select id="selectAlarmTypeDistribution" resultMap="AlarmTypeDistributionMap">
+        SELECT
+            a.alarm_type AS type,
+            CASE a.alarm_type
+                WHEN 1 THEN '紧急求助'
+                WHEN 2 THEN '火灾'
+                WHEN 3 THEN '治安'
+                WHEN 4 THEN '校园欺凌'
+                WHEN 5 THEN '食物中毒'
+                WHEN 6 THEN '自然灾害'
+                WHEN 7 THEN '其他'
+                ELSE '未知'
+            END AS name,
+            COUNT(*) AS count
+        <include refid="alarmJoinSchool"/>
+        <include refid="baseWhere"/>
+        GROUP BY a.alarm_type
+        ORDER BY count DESC
+    </select>
+
+    <resultMap id="PoliceStationProgressMap" type="com.safetycampus.overview.vo.OverviewDashboardVO$PoliceStationProgress">
+        <result column="stationId" property="stationId"/>
+        <result column="stationName" property="stationName"/>
+        <result column="totalCount" property="totalCount"/>
+        <result column="handledCount" property="handledCount"/>
+        <result column="timeoutCount" property="timeoutCount"/>
+    </resultMap>
+
+    <select id="selectPoliceStationProgress" resultMap="PoliceStationProgressMap">
+        SELECT
+            p.id AS stationId,
+            p.station_name AS stationName,
+            COUNT(*) AS totalCount,
+            SUM(CASE WHEN a.status IN (4, 5) THEN 1 ELSE 0 END) AS handledCount,
+            SUM(CASE WHEN a.first_response_at IS NOT NULL
+                AND TIMESTAMPDIFF(SECOND, a.created_at, a.first_response_at) >
+                CASE a.alarm_level
+                    WHEN 1 THEN 300
+                    WHEN 2 THEN 600
+                    ELSE 1800
+                END
+                THEN 1 ELSE 0 END) AS timeoutCount
+        FROM police_station p
+        LEFT JOIN school_info s ON p.id = s.police_station_id
+        LEFT JOIN alarm_record a ON s.id = a.school_id AND a.deleted = 0
+        <where>
+            p.deleted = 0
+            <if test="query.townId != null">
+                AND s.town_id = #{query.townId}
+            </if>
+            <if test="query.schoolType != null">
+                AND s.school_type = #{query.schoolType}
+            </if>
+            <if test="query.alarmType != null">
+                AND a.alarm_type = #{query.alarmType}
+            </if>
+            <if test="query.startTime != null">
+                AND a.created_at >= #{query.startTime}
+            </if>
+            <if test="query.endTime != null">
+                AND a.created_at <= #{query.endTime}
+            </if>
+        </where>
+        GROUP BY p.id, p.station_name
+        ORDER BY totalCount DESC
+    </select>
+
+    <resultMap id="RecentAlarmMap" type="com.safetycampus.overview.vo.OverviewDashboardVO$RecentAlarm">
+        <result column="id" property="id"/>
+        <result column="alarm_no" property="alarmNo"/>
+        <result column="school_name" property="schoolName"/>
+        <result column="alarm_type" property="alarmType"/>
+        <result column="alarm_type_name" property="alarmTypeName"/>
+        <result column="alarm_level" property="alarmLevel"/>
+        <result column="alarm_level_name" property="alarmLevelName"/>
+        <result column="alarm_title" property="alarmTitle"/>
+        <result column="status" property="status"/>
+        <result column="status_name" property="statusName"/>
+        <result column="created_at" property="createdAt"/>
+    </resultMap>
+
+    <select id="selectRecentAlarms" resultMap="RecentAlarmMap">
+        SELECT
+            a.id,
+            a.alarm_no,
+            s.school_name,
+            a.alarm_type,
+            CASE a.alarm_type
+                WHEN 1 THEN '紧急求助'
+                WHEN 2 THEN '火灾'
+                WHEN 3 THEN '治安'
+                WHEN 4 THEN '校园欺凌'
+                WHEN 5 THEN '食物中毒'
+                WHEN 6 THEN '自然灾害'
+                WHEN 7 THEN '其他'
+                ELSE '未知'
+            END AS alarm_type_name,
+            a.alarm_level,
+            CASE a.alarm_level
+                WHEN 1 THEN '重大'
+                WHEN 2 THEN '较大'
+                WHEN 3 THEN '一般'
+                ELSE '未知'
+            END AS alarm_level_name,
+            a.alarm_title,
+            a.status,
+            CASE a.status
+                WHEN 1 THEN '待处置'
+                WHEN 2 THEN '处置中'
+                WHEN 3 THEN '已督办'
+                WHEN 4 THEN '已处置'
+                WHEN 5 THEN '已关闭'
+                ELSE '未知'
+            END AS status_name,
+            a.created_at
+        <include refid="alarmJoinSchool"/>
+        <include refid="baseWhere"/>
+        ORDER BY a.created_at DESC
+        LIMIT 10
+    </select>
+
+    <resultMap id="TimeoutAlarmMap" type="com.safetycampus.overview.vo.OverviewDashboardVO$TimeoutAlarm">
+        <result column="id" property="id"/>
+        <result column="alarm_no" property="alarmNo"/>
+        <result column="school_name" property="schoolName"/>
+        <result column="alarm_type" property="alarmType"/>
+        <result column="alarm_type_name" property="alarmTypeName"/>
+        <result column="alarm_level" property="alarmLevel"/>
+        <result column="alarm_level_name" property="alarmLevelName"/>
+        <result column="alarm_title" property="alarmTitle"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="timeout_minutes" property="timeoutMinutes"/>
+    </resultMap>
+
+    <select id="selectTimeoutAlarms" resultMap="TimeoutAlarmMap">
+        SELECT
+            a.id,
+            a.alarm_no,
+            s.school_name,
+            a.alarm_type,
+            CASE a.alarm_type
+                WHEN 1 THEN '紧急求助'
+                WHEN 2 THEN '火灾'
+                WHEN 3 THEN '治安'
+                WHEN 4 THEN '校园欺凌'
+                WHEN 5 THEN '食物中毒'
+                WHEN 6 THEN '自然灾害'
+                WHEN 7 THEN '其他'
+                ELSE '未知'
+            END AS alarm_type_name,
+            a.alarm_level,
+            CASE a.alarm_level
+                WHEN 1 THEN '重大'
+                WHEN 2 THEN '较大'
+                WHEN 3 THEN '一般'
+                ELSE '未知'
+            END AS alarm_level_name,
+            a.alarm_title,
+            a.created_at,
+            TIMESTAMPDIFF(MINUTE, a.created_at, NOW()) AS timeout_minutes
+        <include refid="alarmJoinSchool"/>
+        <include refid="baseWhere"/>
+        AND a.first_response_at IS NULL
+        AND a.status IN (1, 2, 3)
+        AND TIMESTAMPDIFF(SECOND, a.created_at, NOW()) >
+        CASE a.alarm_level
+            WHEN 1 THEN 300
+            WHEN 2 THEN 600
+            ELSE 1800
+        END
+        ORDER BY a.created_at ASC
+    </select>
+
+</mapper>

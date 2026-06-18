@@ -7,6 +7,8 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
@@ -22,69 +24,95 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private String getMethodName(HttpServletRequest request) {
+        return request.getMethod() + " " + request.getRequestURI();
+    }
+
     @ExceptionHandler(BusinessException.class)
-    public Result<Void> handleBusinessException(BusinessException e, HttpServletRequest request) {
-        log.warn("业务异常: {} - {}", request.getRequestURI(), e.getMessage());
-        return Result.fail(e.getCode(), e.getMessage());
+    public Result<?> handleBusinessException(BusinessException e, HttpServletRequest request) {
+        log.warn("业务异常: {} - {}", getMethodName(request), e.getMessage());
+        return Result.fail(e.getCode(), e.getMessage()).method(getMethodName(request));
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public Result<?> handleAuthenticationException(AuthenticationException e, HttpServletRequest request) {
+        log.warn("认证异常: {} - {}", getMethodName(request), e.getMessage());
+        return Result.fail(ResultCode.TOKEN_INVALID).method(getMethodName(request));
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public Result<?> handleAccessDeniedException(AccessDeniedException e, HttpServletRequest request) {
+        log.warn("权限不足: {} - {}", getMethodName(request), e.getMessage());
+        return Result.fail(ResultCode.PERMISSION_OPERATION_DENIED).method(getMethodName(request));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public Result<Void> handleValidException(MethodArgumentNotValidException e) {
+    public Result<?> handleValidException(MethodArgumentNotValidException e, HttpServletRequest request) {
         String message = e.getBindingResult().getFieldErrors().stream()
                 .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining(", "));
-        log.warn("参数校验异常: {}", message);
-        return Result.fail(ResultCode.PARAM_ERROR.getCode(), message);
+        log.warn("参数校验异常: {} - {}", getMethodName(request), message);
+        return Result.fail(ResultCode.PARAM_VALIDATE_ERROR.getCode(), message)
+                .method(getMethodName(request));
     }
 
     @ExceptionHandler(BindException.class)
-    public Result<Void> handleBindException(BindException e) {
+    public Result<?> handleBindException(BindException e, HttpServletRequest request) {
         String message = e.getBindingResult().getFieldErrors().stream()
                 .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining(", "));
-        log.warn("参数绑定异常: {}", message);
-        return Result.fail(ResultCode.PARAM_ERROR.getCode(), message);
+        log.warn("参数绑定异常: {} - {}", getMethodName(request), message);
+        return Result.fail(ResultCode.PARAM_VALIDATE_ERROR.getCode(), message)
+                .method(getMethodName(request));
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
-    public Result<Void> handleConstraintViolationException(ConstraintViolationException e) {
+    public Result<?> handleConstraintViolationException(ConstraintViolationException e, HttpServletRequest request) {
         String message = e.getConstraintViolations().stream()
                 .map(ConstraintViolation::getMessage)
                 .collect(Collectors.joining(", "));
-        log.warn("约束违反异常: {}", message);
-        return Result.fail(ResultCode.PARAM_ERROR.getCode(), message);
+        log.warn("约束违反异常: {} - {}", getMethodName(request), message);
+        return Result.fail(ResultCode.PARAM_VALIDATE_ERROR.getCode(), message)
+                .method(getMethodName(request));
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
-    public Result<Void> handleMissingParamException(MissingServletRequestParameterException e) {
-        String message = "缺少必要参数: " + e.getParameterName();
-        log.warn(message);
-        return Result.fail(ResultCode.PARAM_ERROR.getCode(), message);
+    public Result<?> handleMissingParamException(MissingServletRequestParameterException e, HttpServletRequest request) {
+        log.warn("参数缺失: {} - {}", getMethodName(request), e.getParameterName());
+        return Result.fail(ResultCode.PARAM_MISSING, e.getParameterName())
+                .method(getMethodName(request));
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public Result<Void> handleTypeMismatchException(MethodArgumentTypeMismatchException e) {
-        String message = "参数类型错误: " + e.getName();
-        log.warn(message);
-        return Result.fail(ResultCode.PARAM_ERROR.getCode(), message);
+    public Result<?> handleTypeMismatchException(MethodArgumentTypeMismatchException e, HttpServletRequest request) {
+        log.warn("参数类型错误: {} - {}, 期望类型: {}", getMethodName(request),
+                e.getName(), e.getRequiredType() != null ? e.getRequiredType().getSimpleName() : "unknown");
+        return Result.fail(ResultCode.PARAM_FORMAT_ERROR, e.getName())
+                .method(getMethodName(request));
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public Result<Void> handleMessageNotReadableException(HttpMessageNotReadableException e) {
-        log.warn("请求体解析错误: {}", e.getMessage());
-        return Result.fail(ResultCode.PARAM_ERROR.getCode(), "请求体格式错误");
+    public Result<?> handleMessageNotReadableException(HttpMessageNotReadableException e, HttpServletRequest request) {
+        log.warn("请求体解析错误: {} - {}", getMethodName(request), e.getMessage());
+        String message = e.getMessage() != null && e.getMessage().contains("Required request body is missing")
+                ? ResultCode.REQUEST_BODY_EMPTY.getMessage()
+                : ResultCode.PARAM_FORMAT_ERROR.formatMessage("请求体");
+        Integer code = e.getMessage() != null && e.getMessage().contains("Required request body is missing")
+                ? ResultCode.REQUEST_BODY_EMPTY.getCode()
+                : ResultCode.PARAM_FORMAT_ERROR.getCode();
+        return Result.fail(code, message).method(getMethodName(request));
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
-    public Result<Void> handleMethodNotSupportedException(HttpRequestMethodNotSupportedException e) {
-        String message = "不支持的请求方法: " + e.getMethod();
-        log.warn(message);
-        return Result.fail(ResultCode.PARAM_ERROR.getCode(), message);
+    public Result<?> handleMethodNotSupportedException(HttpRequestMethodNotSupportedException e, HttpServletRequest request) {
+        log.warn("不支持的请求方法: {} - {}", getMethodName(request), e.getMethod());
+        return Result.fail(ResultCode.PARAM_FORMAT_ERROR, "请求方法")
+                .method(getMethodName(request));
     }
 
     @ExceptionHandler(Exception.class)
-    public Result<Void> handleException(Exception e, HttpServletRequest request) {
-        log.error("系统异常: {} - {}", request.getRequestURI(), e.getMessage(), e);
-        return Result.fail(ResultCode.FAIL.getCode(), "系统异常，请联系管理员");
+    public Result<?> handleException(Exception e, HttpServletRequest request) {
+        log.error("系统异常: {} - {}", getMethodName(request), e.getMessage(), e);
+        return Result.fail(ResultCode.SYSTEM_INTERNAL_ERROR).method(getMethodName(request));
     }
 }

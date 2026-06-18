@@ -9,9 +9,14 @@ import com.safetycampus.alarm.mapper.AlarmRecordMapper;
 import com.safetycampus.alarm.service.AlarmFlowService;
 import com.safetycampus.common.context.LoginUser;
 import com.safetycampus.common.context.UserContext;
+import com.safetycampus.common.enums.PartyTypeEnum;
 import com.safetycampus.common.enums.RoleTypeEnum;
 import com.safetycampus.common.exception.BusinessException;
 import com.safetycampus.common.result.ResultCode;
+import com.safetycampus.notify.entity.PoliceStation;
+import com.safetycampus.notify.mapper.PoliceStationMapper;
+import com.safetycampus.school.entity.SchoolInfo;
+import com.safetycampus.school.mapper.SchoolInfoMapper;
 import com.safetycampus.supervise.dto.AlarmTransferDTO;
 import com.safetycampus.supervise.dto.HandleFeedbackDTO;
 import com.safetycampus.supervise.dto.SuperviseCreateDTO;
@@ -33,23 +38,34 @@ public class SuperviseServiceImpl extends ServiceImpl<AlarmRecordMapper, AlarmRe
     @Resource
     private com.safetycampus.alarm.mapper.AlarmRemindMapper alarmRemindMapper;
 
+    @Resource
+    private SchoolInfoMapper schoolInfoMapper;
+
+    @Resource
+    private PoliceStationMapper policeStationMapper;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean createSupervise(SuperviseCreateDTO dto) {
         AlarmRecord record = getById(dto.getAlarmId());
         if (record == null) {
-            throw new BusinessException(ResultCode.ALARM_NOT_EXIST);
+            throw BusinessException.of(ResultCode.ALARM_NOT_FOUND);
         }
         if (AlarmStatusEnum.CLOSED.getCode().equals(record.getStatus())) {
-            throw new BusinessException(ResultCode.ALARM_STATUS_ERROR, "已关闭的警情不能督办");
+            throw BusinessException.of(ResultCode.ALARM_ALREADY_CLOSED);
         }
 
         LoginUser loginUser = UserContext.getLoginUser();
         Long supervisorId = dto.getSupervisorId();
         String supervisorName = dto.getSupervisorName();
+        Integer partyType = PartyTypeEnum.EDUCATION_BUREAU.getCode();
+        Long partyId = null;
+        String partyName = PartyTypeEnum.EDUCATION_BUREAU.getDesc();
+
         if (supervisorId == null && loginUser != null) {
             supervisorId = loginUser.getUserId();
             supervisorName = loginUser.getRealName();
+            partyId = loginUser.getUserId();
         }
 
         record.setStatus(AlarmStatusEnum.SUPERVISING.getCode());
@@ -58,7 +74,8 @@ public class SuperviseServiceImpl extends ServiceImpl<AlarmRecordMapper, AlarmRe
 
         String remark = "督办要求：" + dto.getSuperviseRequire();
         alarmFlowService.addFlowRecord(dto.getAlarmId(), FlowTypeEnum.SUPERVISE_CREATE.getCode(),
-                supervisorId, supervisorName, RoleTypeEnum.EDUCATION_BUREAU.getDesc(), remark);
+                supervisorId, supervisorName, RoleTypeEnum.EDUCATION_BUREAU.getDesc(),
+                partyType, partyId, partyName, remark, null);
 
         return true;
     }
@@ -82,11 +99,33 @@ public class SuperviseServiceImpl extends ServiceImpl<AlarmRecordMapper, AlarmRe
         Long handlerId = dto.getHandlerId();
         String handlerName = dto.getHandlerName();
         String operatorRole = RoleTypeEnum.SCHOOL_SECURITY.getDesc();
+        Integer partyType = PartyTypeEnum.SCHOOL.getCode();
+        Long partyId = record.getSchoolId();
+        String partyName = null;
+
         if (handlerId == null && loginUser != null) {
             handlerId = loginUser.getUserId();
             handlerName = loginUser.getRealName();
             if (loginUser.getRoleType() != null) {
                 operatorRole = loginUser.getRoleType().getDesc();
+            }
+
+            if (RoleTypeEnum.EDUCATION_BUREAU.equals(loginUser.getRoleType())) {
+                partyType = PartyTypeEnum.EDUCATION_BUREAU.getCode();
+                partyId = loginUser.getUserId();
+                partyName = PartyTypeEnum.EDUCATION_BUREAU.getDesc();
+            } else if (RoleTypeEnum.SCHOOL_SECURITY.equals(loginUser.getRoleType())) {
+                partyType = PartyTypeEnum.SCHOOL.getCode();
+                partyId = loginUser.getSchoolId() != null ? loginUser.getSchoolId() : record.getSchoolId();
+            }
+        }
+
+        if (partyName == null) {
+            SchoolInfo schoolInfo = schoolInfoMapper.selectById(partyId);
+            if (schoolInfo != null) {
+                partyName = schoolInfo.getSchoolName();
+            } else {
+                partyName = PartyTypeEnum.SCHOOL.getDesc();
             }
         }
 
@@ -104,7 +143,7 @@ public class SuperviseServiceImpl extends ServiceImpl<AlarmRecordMapper, AlarmRe
         String statusDesc = AlarmStatusEnum.getDescByCode(dto.getHandleStatus());
         String remark = "处置状态：" + statusDesc + "，处置结果：" + dto.getHandleResult();
         alarmFlowService.addFlowRecord(dto.getAlarmId(), FlowTypeEnum.HANDLE_FEEDBACK.getCode(),
-                handlerId, handlerName, operatorRole, remark, dto.getAttachUrl());
+                handlerId, handlerName, operatorRole, partyType, partyId, partyName, remark, dto.getAttachUrl());
 
         stopAlarmRemind(dto.getAlarmId());
 
@@ -125,9 +164,14 @@ public class SuperviseServiceImpl extends ServiceImpl<AlarmRecordMapper, AlarmRe
         LoginUser loginUser = UserContext.getLoginUser();
         Long operatorId = dto.getOperatorId();
         String operatorName = dto.getOperatorName();
+        Integer partyType = PartyTypeEnum.EDUCATION_BUREAU.getCode();
+        Long partyId = null;
+        String partyName = PartyTypeEnum.EDUCATION_BUREAU.getDesc();
+
         if (operatorId == null && loginUser != null) {
             operatorId = loginUser.getUserId();
             operatorName = loginUser.getRealName();
+            partyId = loginUser.getUserId();
         }
 
         record.setSchoolId(dto.getTargetSchoolId());
@@ -137,7 +181,8 @@ public class SuperviseServiceImpl extends ServiceImpl<AlarmRecordMapper, AlarmRe
 
         String remark = "转派至：" + dto.getTargetSchoolName() + "，转派原因：" + dto.getTransferReason();
         alarmFlowService.addFlowRecord(dto.getAlarmId(), FlowTypeEnum.ALARM_TRANSFER.getCode(),
-                operatorId, operatorName, RoleTypeEnum.EDUCATION_BUREAU.getDesc(), remark);
+                operatorId, operatorName, RoleTypeEnum.EDUCATION_BUREAU.getDesc(),
+                partyType, partyId, partyName, remark, null);
 
         return true;
     }
@@ -157,11 +202,26 @@ public class SuperviseServiceImpl extends ServiceImpl<AlarmRecordMapper, AlarmRe
         Long operatorId = null;
         String operatorName = null;
         String operatorRole = null;
+        Integer partyType = null;
+        Long partyId = null;
+        String partyName = null;
+
         if (loginUser != null) {
             operatorId = loginUser.getUserId();
             operatorName = loginUser.getRealName();
             if (loginUser.getRoleType() != null) {
                 operatorRole = loginUser.getRoleType().getDesc();
+            }
+
+            if (RoleTypeEnum.EDUCATION_BUREAU.equals(loginUser.getRoleType())) {
+                partyType = PartyTypeEnum.EDUCATION_BUREAU.getCode();
+                partyId = loginUser.getUserId();
+                partyName = PartyTypeEnum.EDUCATION_BUREAU.getDesc();
+            } else if (RoleTypeEnum.SCHOOL_SECURITY.equals(loginUser.getRoleType())) {
+                partyType = PartyTypeEnum.SCHOOL.getCode();
+                partyId = loginUser.getSchoolId() != null ? loginUser.getSchoolId() : record.getSchoolId();
+                SchoolInfo schoolInfo = schoolInfoMapper.selectById(partyId);
+                partyName = schoolInfo != null ? schoolInfo.getSchoolName() : PartyTypeEnum.SCHOOL.getDesc();
             }
         }
 
@@ -171,7 +231,7 @@ public class SuperviseServiceImpl extends ServiceImpl<AlarmRecordMapper, AlarmRe
 
         String flowRemark = remark != null ? remark : "警情已关闭";
         alarmFlowService.addFlowRecord(id, FlowTypeEnum.ALARM_CLOSE.getCode(),
-                operatorId, operatorName, operatorRole, flowRemark);
+                operatorId, operatorName, operatorRole, partyType, partyId, partyName, flowRemark, null);
 
         stopAlarmRemind(id);
 
@@ -195,13 +255,19 @@ public class SuperviseServiceImpl extends ServiceImpl<AlarmRecordMapper, AlarmRe
         LoginUser loginUser = UserContext.getLoginUser();
         Long operatorId = null;
         String operatorName = null;
+        Integer partyType = PartyTypeEnum.EDUCATION_BUREAU.getCode();
+        Long partyId = null;
+        String partyName = PartyTypeEnum.EDUCATION_BUREAU.getDesc();
+
         if (loginUser != null) {
             operatorId = loginUser.getUserId();
             operatorName = loginUser.getRealName();
+            partyId = loginUser.getUserId();
         }
 
         alarmFlowService.addFlowRecord(id, FlowTypeEnum.REMIND_MANUAL.getCode(),
-                operatorId, operatorName, RoleTypeEnum.EDUCATION_BUREAU.getDesc(), "手动催办，请尽快处置");
+                operatorId, operatorName, RoleTypeEnum.EDUCATION_BUREAU.getDesc(),
+                partyType, partyId, partyName, "手动催办，请尽快处置", null);
 
         updateAlarmRemind(id);
 
@@ -226,8 +292,12 @@ public class SuperviseServiceImpl extends ServiceImpl<AlarmRecordMapper, AlarmRe
                 continue;
             }
 
+            Integer partyType = PartyTypeEnum.SYSTEM.getCode();
+            Long partyId = null;
+            String partyName = PartyTypeEnum.SYSTEM.getDesc();
+
             alarmFlowService.addFlowRecord(remind.getAlarmId(), FlowTypeEnum.REMIND_TIMEOUT.getCode(),
-                    null, "系统", "系统", "超时自动催办，请尽快处置");
+                    null, "系统", "系统", partyType, partyId, partyName, "超时自动催办，请尽快处置", null);
 
             remind.setRemindCount(remind.getRemindCount() + 1);
             remind.setLastRemindAt(now);

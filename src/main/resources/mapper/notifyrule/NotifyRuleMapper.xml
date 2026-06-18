@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.safetycampus.notifyrule.mapper.NotifyRuleMapper">
+
+    <resultMap id="BaseResultMap" type="com.safetycampus.notifyrule.entity.NotifyRule">
+        <id column="id" property="id"/>
+        <result column="rule_name" property="ruleName"/>
+        <result column="rule_type" property="ruleType"/>
+        <result column="priority" property="priority"/>
+        <result column="is_enabled" property="isEnabled"/>
+        <result column="holiday_mode" property="holidayMode"/>
+        <result column="night_mode" property="nightMode"/>
+        <result column="school_types" property="schoolTypes"/>
+        <result column="alarm_levels" property="alarmLevels"/>
+        <result column="notify_channels" property="notifyChannels"/>
+        <result column="notify_targets" property="notifyTargets"/>
+        <result column="notify_template" property="notifyTemplate"/>
+        <result column="description" property="description"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+        <result column="deleted" property="deleted"/>
+    </resultMap>
+
+    <select id="selectPageByCondition" resultMap="BaseResultMap">
+        SELECT * FROM notify_rule
+        WHERE deleted = 0
+        <if test="query.ruleName != null and query.ruleName != ''">
+            AND rule_name LIKE CONCAT('%', #{query.ruleName}, '%')
+        </if>
+        <if test="query.ruleType != null">
+            AND rule_type = #{query.ruleType}
+        </if>
+        <if test="query.isEnabled != null">
+            AND is_enabled = #{query.isEnabled}
+        </if>
+        <if test="query.holidayMode != null">
+            AND holiday_mode = #{query.holidayMode}
+        </if>
+        <if test="query.nightMode != null">
+            AND night_mode = #{query.nightMode}
+        </if>
+        ORDER BY priority DESC, id DESC
+        LIMIT #{query.pageSize} OFFSET #{query.offset}
+    </select>
+
+    <select id="countByCondition" resultType="java.lang.Long">
+        SELECT COUNT(*) FROM notify_rule
+        WHERE deleted = 0
+        <if test="query.ruleName != null and query.ruleName != ''">
+            AND rule_name LIKE CONCAT('%', #{query.ruleName}, '%')
+        </if>
+        <if test="query.ruleType != null">
+            AND rule_type = #{query.ruleType}
+        </if>
+        <if test="query.isEnabled != null">
+            AND is_enabled = #{query.isEnabled}
+        </if>
+        <if test="query.holidayMode != null">
+            AND holiday_mode = #{query.holidayMode}
+        </if>
+        <if test="query.nightMode != null">
+            AND night_mode = #{query.nightMode}
+        </if>
+    </select>
+
+</mapper>

@@ -97,3 +97,16 @@ INSERT INTO alarm_device (id, device_code, device_name, device_type, school_id, 
 (6, 'DEV006', '园区报警柱', 1, 3, '幼儿园大门内', 1),
 (7, 'DEV007', '教学楼报警盒', 2, 3, '教学楼入口', 1)
 ON DUPLICATE KEY UPDATE device_code = VALUES(device_code);
+
+INSERT INTO town_info (id, town_code, town_name, sort_order) VALUES
+(1, 'TOWN001', '城关镇', 1),
+(2, 'TOWN002', '城郊镇', 2),
+(3, 'TOWN003', '高新街道', 3),
+(4, 'TOWN004', '滨河街道', 4),
+(5, 'TOWN005', '文峰镇', 5),
+(6, 'TOWN006', '太平镇', 6)
+ON DUPLICATE KEY UPDATE town_code = VALUES(town_code);
+
+UPDATE school_info SET town_id = 1 WHERE id = 1;
+UPDATE school_info SET town_id = 1 WHERE id = 2;
+UPDATE school_info SET town_id = 2 WHERE id = 3;

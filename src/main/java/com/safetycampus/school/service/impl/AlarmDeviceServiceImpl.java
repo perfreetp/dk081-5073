@@ -4,9 +4,13 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.safetycampus.common.exception.BusinessException;
+import com.safetycampus.common.result.ResultCode;
 import com.safetycampus.school.dto.DeviceBindDTO;
 import com.safetycampus.school.entity.AlarmDevice;
+import com.safetycampus.school.entity.SchoolInfo;
 import com.safetycampus.school.mapper.AlarmDeviceMapper;
+import com.safetycampus.school.mapper.SchoolInfoMapper;
 import com.safetycampus.school.service.AlarmDeviceService;
 import com.safetycampus.school.service.SchoolInfoService;
 import org.springframework.beans.BeanUtils;
@@ -43,7 +47,24 @@ public class AlarmDeviceServiceImpl extends ServiceImpl<AlarmDeviceMapper, Alarm
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public boolean bindDevice(DeviceBindDTO dto) {
+    public void bindDevice(DeviceBindDTO dto) {
+        if (dto.getDeviceCode() != null) {
+            LambdaQueryWrapper<AlarmDevice> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(AlarmDevice::getDeviceCode, dto.getDeviceCode());
+            Long count = this.count(wrapper);
+            if (count > 0) {
+                throw BusinessException.of(ResultCode.DEVICE_CODE_EXISTS);
+            }
+        }
+        if (dto.getSchoolId() != null) {
+            SchoolInfo school = schoolInfoService.getById(dto.getSchoolId());
+            if (school == null) {
+                throw BusinessException.of(ResultCode.SCHOOL_NOT_FOUND);
+            }
+            if (school.getStatus() != null && school.getStatus() == 0) {
+                throw BusinessException.of(ResultCode.SCHOOL_DISABLED);
+            }
+        }
         AlarmDevice device = new AlarmDevice();
         BeanUtils.copyProperties(dto, device);
         if (device.getStatus() == null) {
@@ -52,63 +73,92 @@ public class AlarmDeviceServiceImpl extends ServiceImpl<AlarmDeviceMapper, Alarm
         if (device.getLastOnlineAt() == null) {
             device.setLastOnlineAt(LocalDateTime.now());
         }
-        boolean result = this.save(device);
-        if (result && dto.getSchoolId() != null) {
+        boolean saved = this.save(device);
+        if (!saved) {
+            throw BusinessException.of(ResultCode.DATABASE_ERROR);
+        }
+        if (dto.getSchoolId() != null) {
             schoolInfoService.updateDeviceCount(dto.getSchoolId(), 1);
         }
-        return result;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public boolean updateDevice(DeviceBindDTO dto) {
+    public void updateDevice(DeviceBindDTO dto) {
         AlarmDevice oldDevice = this.getById(dto.getId());
         if (oldDevice == null) {
-            return false;
+            throw BusinessException.of(ResultCode.DEVICE_NOT_FOUND);
+        }
+        if (dto.getDeviceCode() != null && !dto.getDeviceCode().equals(oldDevice.getDeviceCode())) {
+            LambdaQueryWrapper<AlarmDevice> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(AlarmDevice::getDeviceCode, dto.getDeviceCode());
+            wrapper.ne(AlarmDevice::getId, dto.getId());
+            Long count = this.count(wrapper);
+            if (count > 0) {
+                throw BusinessException.of(ResultCode.DEVICE_CODE_EXISTS);
+            }
+        }
+        if (dto.getSchoolId() != null && !dto.getSchoolId().equals(oldDevice.getSchoolId())) {
+            SchoolInfo school = schoolInfoService.getById(dto.getSchoolId());
+            if (school == null) {
+                throw BusinessException.of(ResultCode.SCHOOL_NOT_FOUND);
+            }
+            if (school.getStatus() != null && school.getStatus() == 0) {
+                throw BusinessException.of(ResultCode.SCHOOL_DISABLED);
+            }
         }
         Long oldSchoolId = oldDevice.getSchoolId();
         Long newSchoolId = dto.getSchoolId();
 
         AlarmDevice device = new AlarmDevice();
         BeanUtils.copyProperties(dto, device);
-        boolean result = this.updateById(device);
+        boolean updated = this.updateById(device);
+        if (!updated) {
+            throw BusinessException.of(ResultCode.DATABASE_ERROR);
+        }
 
-        if (result && oldSchoolId != null && !oldSchoolId.equals(newSchoolId)) {
+        if (oldSchoolId != null && !oldSchoolId.equals(newSchoolId)) {
             schoolInfoService.updateDeviceCount(oldSchoolId, -1);
             if (newSchoolId != null) {
                 schoolInfoService.updateDeviceCount(newSchoolId, 1);
             }
         }
-        return result;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public boolean unbindDevice(Long id) {
+    public void unbindDevice(Long id) {
         AlarmDevice device = this.getById(id);
         if (device == null) {
-            return false;
+            throw BusinessException.of(ResultCode.DEVICE_NOT_FOUND);
         }
-        boolean result = this.removeById(id);
-        if (result && device.getSchoolId() != null) {
+        boolean removed = this.removeById(id);
+        if (!removed) {
+            throw BusinessException.of(ResultCode.DATABASE_ERROR);
+        }
+        if (device.getSchoolId() != null) {
             schoolInfoService.updateDeviceCount(device.getSchoolId(), -1);
         }
-        return result;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public boolean updateDeviceStatus(String deviceCode, Integer status) {
+    public void updateDeviceStatus(String deviceCode, Integer status) {
         LambdaQueryWrapper<AlarmDevice> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(AlarmDevice::getDeviceCode, deviceCode);
         AlarmDevice device = this.getOne(wrapper);
-        if (device != null) {
-            device.setStatus(status);
-            if (status == 1) {
-                device.setLastOnlineAt(LocalDateTime.now());
-            }
-            return this.updateById(device);
+        if (device == null) {
+            throw BusinessException.of(ResultCode.DEVICE_NOT_FOUND);
         }
-        return false;
+        device.setStatus(status);
+        if (status == 1) {
+            device.setLastOnlineAt(LocalDateTime.now());
+        } else if (status == 0) {
+            throw BusinessException.of(ResultCode.DEVICE_OFFLINE);
+        }
+        boolean updated = this.updateById(device);
+        if (!updated) {
+            throw BusinessException.of(ResultCode.DATABASE_ERROR);
+        }
     }
 }

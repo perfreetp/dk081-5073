@@ -3,6 +3,9 @@ package com.safetycampus.alarm.controller;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.safetycampus.alarm.dto.AlarmMergeDTO;
 import com.safetycampus.alarm.dto.AlarmQueryDTO;
+import com.safetycampus.alarm.dto.AlarmTimelineQueryDTO;
+import com.safetycampus.alarm.dto.AlarmTimelineSummaryVO;
+import com.safetycampus.alarm.dto.AlarmTimelineVO;
 import com.safetycampus.alarm.entity.AlarmFlow;
 import com.safetycampus.alarm.entity.AlarmRecord;
 import com.safetycampus.alarm.service.AlarmFlowService;
@@ -47,6 +50,30 @@ public class AlarmRecordController {
     public Result<List<AlarmFlow>> getFlow(@Parameter(description = "警情ID") @PathVariable Long id) {
         List<AlarmFlow> flowList = alarmFlowService.getFlowByAlarmId(id);
         return Result.success(flowList);
+    }
+
+    @Operation(summary = "获取警情时间轴")
+    @GetMapping("/{id}/timeline")
+    public Result<List<AlarmTimelineVO>> getTimeline(
+            @Parameter(description = "警情ID") @PathVariable Long id,
+            @Parameter(description = "参与方类型筛选") @RequestParam(required = false) List<Integer> partyTypes,
+            @Parameter(description = "操作类型筛选") @RequestParam(required = false) List<Integer> flowTypes,
+            @Parameter(description = "开始时间") @RequestParam(required = false) String startTime,
+            @Parameter(description = "结束时间") @RequestParam(required = false) String endTime) {
+        AlarmTimelineQueryDTO queryDTO = new AlarmTimelineQueryDTO();
+        queryDTO.setAlarmId(id);
+        queryDTO.setPartyTypes(partyTypes);
+        queryDTO.setFlowTypes(flowTypes);
+        List<AlarmTimelineVO> timeline = alarmFlowService.getAlarmTimeline(queryDTO);
+        return Result.success(timeline);
+    }
+
+    @Operation(summary = "获取警情时间轴摘要")
+    @GetMapping("/{id}/timeline/summary")
+    public Result<AlarmTimelineSummaryVO> getTimelineSummary(
+            @Parameter(description = "警情ID") @PathVariable Long id) {
+        AlarmTimelineSummaryVO summary = alarmFlowService.getTimelineSummary(id);
+        return Result.success(summary);
     }
 
     @Operation(summary = "合并重复报警")

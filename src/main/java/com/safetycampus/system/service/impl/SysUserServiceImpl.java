@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.safetycampus.common.exception.BusinessException;
+import com.safetycampus.common.result.ResultCode;
 import com.safetycampus.system.dto.SysUserDTO;
 import com.safetycampus.system.dto.SysUserQueryDTO;
 import com.safetycampus.system.entity.SysUser;
@@ -79,11 +80,11 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     @Transactional(rollbackFor = Exception.class)
     public boolean resetPassword(Long id, String newPassword) {
         if (newPassword == null || newPassword.isEmpty()) {
-            throw new BusinessException("新密码不能为空");
+            throw BusinessException.of(ResultCode.PARAM_MISSING, "新密码");
         }
         SysUser user = this.getById(id);
         if (user == null) {
-            throw new BusinessException("用户不存在");
+            throw BusinessException.of(ResultCode.PARAM_VALIDATE_ERROR);
         }
         user.setPassword(passwordEncoder.encode(newPassword));
         return this.updateById(user);
