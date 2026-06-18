@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.safetycampus.system.mapper.SysParamMapper">
+
+    <resultMap id="BaseResultMap" type="com.safetycampus.system.entity.SysParam">
+        <id column="id" property="id"/>
+        <result column="param_key" property="paramKey"/>
+        <result column="param_value" property="paramValue"/>
+        <result column="param_name" property="paramName"/>
+        <result column="description" property="description"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+        <result column="deleted" property="deleted"/>
+    </resultMap>
+
+    <select id="selectByParamKey" resultMap="BaseResultMap">
+        SELECT * FROM sys_param
+        WHERE param_key = #{paramKey}
+        LIMIT 1
+    </select>
+
+</mapper>

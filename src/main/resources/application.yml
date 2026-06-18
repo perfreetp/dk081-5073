@@ -1,0 +1,104 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: safety-alarm-platform
+  profiles:
+    active: dev
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/safety_campus?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+    username: root
+    password: root
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      database: 0
+      timeout: 3000ms
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
+  mail:
+    host: smtp.qq.com
+    port: 465
+    username: noreply@example.com
+    password: password
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+
+mybatis-plus:
+  mapper-locations: classpath:mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: AUTO
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
+    enable-swagger-models: true
+
+jwt:
+  secret: safety-campus-jwt-secret-key-2024-06-18-abcdefghijklmnop
+  expire: 86400
+  header: Authorization
+  prefix: Bearer 
+
+alarm:
+  duplicate:
+    time-window: 300
+  escalate:
+    critical-level: 1
+    auto-escalate: true
+  timeout:
+    first-response: 300
+    remind-interval: 600
+  holiday:
+    mode: strict
+    notify-all: true
+
+notify:
+  sms:
+    provider: aliyun
+    template-critical: SMS_123456789
+    template-warning: SMS_123456790
+    template-normal: SMS_123456791
+  app:
+    enabled: true
+  call:
+    enabled: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: jdbc:mysql://localhost:3306/safety_campus_dev?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.safetycampus.report.mapper.SchoolRiskMapper">
+
+    <resultMap id="BaseResultMap" type="com.safetycampus.report.entity.SchoolRisk">
+        <id column="id" property="id"/>
+        <result column="school_id" property="schoolId"/>
+        <result column="stat_month" property="statMonth"/>
+        <result column="total_alarms" property="totalAlarms"/>
+        <result column="critical_alarms" property="criticalAlarms"/>
+        <result column="avg_response_time" property="avgResponseTime"/>
+        <result column="avg_handle_time" property="avgHandleTime"/>
+        <result column="timeout_count" property="timeoutCount"/>
+        <result column="school_level" property="schoolLevel"/>
+        <result column="risk_score" property="riskScore"/>
+        <result column="risk_level" property="riskLevel"/>
+        <result column="indicators" property="indicators"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+        <result column="deleted" property="deleted"/>
+    </resultMap>
+
+    <select id="selectPageByCondition" resultMap="BaseResultMap">
+        SELECT r.*, s.school_name
+        FROM school_risk r
+        LEFT JOIN school_info s ON r.school_id = s.id
+        WHERE r.deleted = 0
+        <if test="query.schoolId != null">
+            AND r.school_id = #{query.schoolId}
+        </if>
+        <if test="query.groupId != null">
+            AND s.group_id = #{query.groupId}
+        </if>
+        <if test="query.statMonth != null and query.statMonth != ''">
+            AND r.stat_month = #{query.statMonth}
+        </if>
+        <if test="query.riskLevel != null">
+            AND r.risk_level = #{query.riskLevel}
+        </if>
+        <if test="query.schoolLevel != null">
+            AND r.school_level = #{query.schoolLevel}
+        </if>
+        <if test="query.keyword != null and query.keyword != ''">
+            AND s.school_name LIKE CONCAT('%', #{query.keyword}, '%')
+        </if>
+        ORDER BY r.risk_score ASC
+    </select>
+
+    <select id="selectHighRiskSchools" resultMap="BaseResultMap">
+        SELECT r.*, s.school_name
+        FROM school_risk r
+        LEFT JOIN school_info s ON r.school_id = s.id
+        WHERE r.deleted = 0
+        AND r.risk_level = #{riskLevel}
+        <if test="statMonth != null and statMonth != ''">
+            AND r.stat_month = #{statMonth}
+        </if>
+        ORDER BY r.risk_score ASC
+    </select>
+
+</mapper>

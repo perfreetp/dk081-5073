@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.safetycampus.system.mapper.DutyScheduleMapper">
+
+    <resultMap id="BaseResultMap" type="com.safetycampus.system.entity.DutySchedule">
+        <id column="id" property="id"/>
+        <result column="duty_date" property="dutyDate"/>
+        <result column="duty_type" property="dutyType"/>
+        <result column="user_id" property="userId"/>
+        <result column="user_name" property="userName"/>
+        <result column="shift_type" property="shiftType"/>
+        <result column="start_time" property="startTime"/>
+        <result column="end_time" property="endTime"/>
+        <result column="is_standby" property="isStandby"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+        <result column="deleted" property="deleted"/>
+    </resultMap>
+
+    <select id="selectByDateRange" resultMap="BaseResultMap">
+        SELECT * FROM duty_schedule
+        WHERE duty_date BETWEEN #{startDate} AND #{endDate}
+        ORDER BY duty_date, shift_type
+    </select>
+
+    <select id="selectByUserIdAndDateRange" resultMap="BaseResultMap">
+        SELECT * FROM duty_schedule
+        WHERE user_id = #{userId}
+          AND duty_date BETWEEN #{startDate} AND #{endDate}
+        ORDER BY duty_date, shift_type
+    </select>
+
+</mapper>

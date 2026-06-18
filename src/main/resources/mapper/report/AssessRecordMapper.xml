@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.safetycampus.report.mapper.AssessRecordMapper">
+
+    <resultMap id="BaseResultMap" type="com.safetycampus.report.entity.AssessRecord">
+        <id column="id" property="id"/>
+        <result column="school_id" property="schoolId"/>
+        <result column="stat_quarter" property="statQuarter"/>
+        <result column="total_score" property="totalScore"/>
+        <result column="alarm_score" property="alarmScore"/>
+        <result column="response_score" property="responseScore"/>
+        <result column="handle_score" property="handleScore"/>
+        <result column="duty_score" property="dutyScore"/>
+        <result column="rank_num" property="rankNum"/>
+        <result column="grade" property="grade"/>
+        <result column="assess_date" property="assessDate"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+        <result column="deleted" property="deleted"/>
+    </resultMap>
+
+    <select id="selectPageByCondition" resultMap="BaseResultMap">
+        SELECT a.*, s.school_name
+        FROM assess_record a
+        LEFT JOIN school_info s ON a.school_id = s.id
+        WHERE a.deleted = 0
+        <if test="query.schoolId != null">
+            AND a.school_id = #{query.schoolId}
+        </if>
+        <if test="query.groupId != null">
+            AND s.group_id = #{query.groupId}
+        </if>
+        <if test="query.statQuarter != null and query.statQuarter != ''">
+            AND a.stat_quarter = #{query.statQuarter}
+        </if>
+        <if test="query.grade != null and query.grade != ''">
+            AND a.grade = #{query.grade}
+        </if>
+        <if test="query.keyword != null and query.keyword != ''">
+            AND s.school_name LIKE CONCAT('%', #{query.keyword}, '%')
+        </if>
+        ORDER BY a.rank_num ASC
+    </select>
+
+    <select id="selectQuarterRank" resultMap="BaseResultMap">
+        SELECT a.*, s.school_name
+        FROM assess_record a
+        LEFT JOIN school_info s ON a.school_id = s.id
+        WHERE a.deleted = 0
+        AND a.stat_quarter = #{statQuarter}
+        ORDER BY a.rank_num ASC
+    </select>
+
+</mapper>
